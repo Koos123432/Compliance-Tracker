@@ -36,8 +36,8 @@ export default function CollaborationPanel({ entityType, entityId, entityName }:
     connectionState, 
     lastMessage, 
     sendMessage, 
-    subscribeToEntity, 
-    unsubscribeFromEntity 
+    subscribe, 
+    unsubscribe 
   } = useWebSocketContext();
   
   const [messageInput, setMessageInput] = useState('');
@@ -49,7 +49,7 @@ export default function CollaborationPanel({ entityType, entityId, entityName }:
   useEffect(() => {
     if (connectionState === 'open') {
       // Subscribe to the entity
-      subscribeToEntity(entityType, entityId);
+      subscribe(entityType, entityId);
       
       // Send presence notification
       sendMessage({
@@ -65,10 +65,10 @@ export default function CollaborationPanel({ entityType, entityId, entityName }:
     
     return () => {
       if (connectionState === 'open') {
-        unsubscribeFromEntity(entityType, entityId);
+        unsubscribe(entityType, entityId);
       }
     };
-  }, [entityType, entityId, connectionState, subscribeToEntity, unsubscribeFromEntity, sendMessage]);
+  }, [entityType, entityId, connectionState, subscribe, unsubscribe, sendMessage]);
   
   // Handle incoming messages
   useEffect(() => {

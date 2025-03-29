@@ -13,6 +13,8 @@ import Reports from "@/pages/Reports";
 import Investigations from "@/pages/Investigations";
 import InvestigationDetails from "@/pages/InvestigationDetails";
 import Organization from "@/pages/Organization";
+import Dispatch from "@/pages/Dispatch";
+import { WebSocketProvider } from "./context/WebSocketContext";
 
 function Router() {
   return (
@@ -28,6 +30,7 @@ function Router() {
       <Route path="/investigations" component={Investigations} />
       <Route path="/investigations/:id" component={InvestigationDetails} />
       <Route path="/organization" component={Organization} />
+      <Route path="/dispatch" component={Dispatch} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
@@ -37,8 +40,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
+      <WebSocketProvider>
+        <Router />
+        <Toaster />
+      </WebSocketProvider>
     </QueryClientProvider>
   );
 }

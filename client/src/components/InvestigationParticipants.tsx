@@ -58,9 +58,18 @@ const InvestigationParticipants: React.FC<InvestigationParticipantsProps> = ({ i
     queryFn: async () => {
       try {
         const response = await fetch(`/api/investigations/${investigationId}/participants`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
         const data = await response.json();
         console.log("Fetched participants data:", data);
-        // Ensure we always return an array
+        
+        // Ensure we're always working with an array, even if the API returns something else
+        if (!Array.isArray(data)) {
+          console.warn("API didn't return an array for participants, using empty array instead:", data);
+          return [];
+        }
+        
         return data;
       } catch (error) {
         console.error("Error fetching participants:", error);
@@ -70,8 +79,10 @@ const InvestigationParticipants: React.FC<InvestigationParticipantsProps> = ({ i
     enabled: !!investigationId,
   });
   
-  // Ensure participants is always an array
+  // Ensure participants is always an array with proper type checking
   const participants = Array.isArray(participantsData) ? participantsData : [];
+  // Log for debugging
+  console.log('Participants data type:', typeof participantsData, Array.isArray(participantsData));
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading } = useQuery({

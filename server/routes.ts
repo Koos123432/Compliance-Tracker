@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import setupWebSocketServer from "./websocket";
+import { broadcastMessage } from "./websocket";
 import { 
   insertInspectionSchema, 
   insertPersonSchema, 
@@ -42,7 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
   
   // Set up WebSocket server for real-time communication
-  const wss = setupWebSocketServer(httpServer);
+  // The WebSocket server is now initialized in server/index.ts
 
   // Helper function to generate unique numbers with prefix
   function generateUniqueNumber(prefix: string): string {
@@ -673,6 +673,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(assignment);
     } catch (error) {
       res.status(400).json({ message: "Failed to update assignment status", error });
+    }
+  });
+  
+  // Get schedules with filter by status (for dispatch)
+  app.get("/api/schedules", async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status as string | undefined;
+      const teamId = req.query.teamId ? parseInt(req.query.teamId as string, 10) : undefined;
+      
+      let schedules = await storage.getTeamSchedules();
+      
+      // Apply filters if provided
+      if (status) {
+        schedules = schedules.filter(schedule => schedule.status === status);
+      }
+      
+      if (teamId) {
+        schedules = schedules.filter(schedule => schedule.teamId === teamId);
+      }
+      
+      res.json(schedules);
+    } catch (error) {
+      console.error("Error fetching schedules:", error);
+      res.status(500).json({ error: "Failed to fetch schedules" });
+    }
+  });
+  
+  // Create and update dispatch jobs with location data
+  app.post("/api/teamSchedules", async (req: Request, res: Response) => {
+    try {
+      const { 
+        title, 
+        description, 
+        scheduledDate, 
+        teamId, 
+        createdBy, 
+        status = "pending",
+        priority = "medium",
+        location,
+        assignedMembers = []
+      } = req.body;
+      
+      // Validate required fields
+      if (!title || !teamId || !scheduledDate || !createdBy) {
+        return res.status(400).json({ 
+          error: "Missing required fields. Required: title, teamId, scheduledDate, createdBy" 
+        });
+      }
+      
+      // Create the team schedule job
+      const schedule = await storage.createTeamSchedule({
+        title,
+        description: description || null,
+        scheduledDate: new Date(scheduledDate),
+        teamId,
+        createdBy,
+        status,
+        createdAt: new Date(),
+      });
+      
+      // If there are assigned members, create assignments for each
+      const assignments = [];
+      for (const userId of assignedMembers) {
+        try {
+          const assignment = await storage.assignTeamSchedule({
+            teamScheduleId: schedule.id,
+            userId: parseInt(userId),
+            assignmentStatus: "pending",
+            notes: "Assigned during job creation",
+          });
+          
+          // Create notification for each assigned user
+          await storage.createNotification({
+            userId: parseInt(userId),
+            title: "New Job Assignment",
+            message: `You have been assigned to job: ${title}`,
+            type: "job_assignment",
+            entityId: schedule.id,
+            entityType: "team_schedule",
+            priority,
+            isRead: false,
+          });
+          
+          assignments.push(assignment);
+        } catch (assignmentError) {
+          console.error(`Error assigning user ${userId}:`, assignmentError);
+          // Continue with other assignments even if one fails
+        }
+      }
+      
+      // Also add a notification for the whole team
+      const teamMembers = await storage.getTeamMembers(teamId);
+      for (const member of teamMembers) {
+        // Skip users who were directly assigned already
+        if (assignedMembers.includes(member.userId.toString())) continue;
+        
+        await storage.createNotification({
+          userId: member.userId,
+          title: "New Team Job",
+          message: `A new job has been scheduled for your team: ${title}`,
+          type: "team_job",
+          entityId: schedule.id,
+          entityType: "team_schedule",
+          priority: priority === "high" ? "high" : "medium",
+          isRead: false,
+          createdAt: new Date(),
+        });
+      }
+      
+      // Save location data if provided
+      if (location) {
+        // We'll store location as part of the activity for now
+        await storage.createActivity({
+          userId: createdBy,
+          description: `Job created at location: ${location}`,
+          activityType: "job_creation",
+          entityId: schedule.id,
+          entityType: "team_schedule",
+          createdAt: new Date(),
+        });
+      }
+      
+      res.status(201).json({
+        ...schedule,
+        assignedMembers: assignments,
+        location
+      });
+    } catch (error) {
+      console.error("Error creating team schedule:", error);
+      res.status(500).json({ error: "Failed to create team schedule" });
+    }
+  });
+  
+  // Update a team schedule/job (for dispatch status changes)
+  app.patch("/api/schedules/:id", async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const scheduleId = parseInt(id, 10);
+    
+    try {
+      const { status, title, description, scheduledDate, priority, location } = req.body;
+      
+      // Get the current schedule to check for status change
+      const currentSchedule = await storage.getTeamSchedule(scheduleId);
+      if (!currentSchedule) {
+        return res.status(404).json({ error: "Team schedule not found" });
+      }
+      
+      // Update the team schedule
+      const updatedData: any = {};
+      if (status) updatedData.status = status;
+      if (title) updatedData.title = title;
+      if (description) updatedData.description = description;
+      if (scheduledDate) updatedData.scheduledDate = new Date(scheduledDate);
+      if (priority) updatedData.priority = priority;
+      
+      const updatedSchedule = await storage.updateTeamSchedule(scheduleId, updatedData);
+      
+      // If status has changed, create an activity and notifications
+      if (status && status !== currentSchedule.status) {
+        // Record the activity
+        await storage.createActivity({
+          userId: 1, // Should be the current user
+          description: `Job status changed from ${currentSchedule.status} to ${status}`,
+          activityType: "job_status_change",
+          entityId: scheduleId,
+          entityType: "team_schedule",
+          createdAt: new Date(),
+        });
+        
+        // If job was activated, notify assigned members
+        if (status === "active" && currentSchedule.status === "pending") {
+          const assignments = await storage.getTeamScheduleAssignments(scheduleId);
+          
+          for (const assignment of assignments) {
+            await storage.createNotification({
+              userId: assignment.userId,
+              title: "Job Dispatched",
+              message: `Job: ${currentSchedule.title} has been dispatched and is now active`,
+              type: "job_dispatched",
+              entityId: scheduleId,
+              entityType: "team_schedule",
+              priority: "high",
+              isRead: false,
+              createdAt: new Date(),
+            });
+          }
+          
+          // If no specific assignments, notify team members
+          if (assignments.length === 0) {
+            const teamMembers = await storage.getTeamMembers(currentSchedule.teamId);
+            
+            for (const member of teamMembers) {
+              await storage.createNotification({
+                userId: member.userId,
+                title: "Team Job Dispatched",
+                message: `Job: ${currentSchedule.title} for your team has been dispatched`,
+                type: "job_dispatched",
+                entityId: scheduleId,
+                entityType: "team_schedule",
+                priority: "high",
+                isRead: false,
+                createdAt: new Date(),
+              });
+            }
+          }
+        }
+        
+        // Handle completed or cancelled status
+        if (status === "completed" || status === "cancelled") {
+          const teamMembers = await storage.getTeamMembers(currentSchedule.teamId);
+          
+          for (const member of teamMembers) {
+            await storage.createNotification({
+              userId: member.userId,
+              title: `Job ${status === "completed" ? "Completed" : "Cancelled"}`,
+              message: `Job: ${currentSchedule.title} has been ${status === "completed" ? "completed" : "cancelled"}`,
+              type: "job_" + status,
+              entityId: scheduleId,
+              entityType: "team_schedule",
+              priority: "medium",
+              isRead: false,
+              createdAt: new Date(),
+            });
+          }
+        }
+      }
+      
+      // Save location data if provided
+      if (location) {
+        await storage.createActivity({
+          userId: 1, // Should be the current user
+          description: `Job location updated to: ${location}`,
+          activityType: "job_location_update",
+          entityId: scheduleId,
+          entityType: "team_schedule",
+          createdAt: new Date(),
+        });
+      }
+      
+      res.json(updatedSchedule);
+    } catch (error) {
+      console.error("Error updating team schedule:", error);
+      res.status(500).json({ error: "Failed to update team schedule" });
     }
   });
 

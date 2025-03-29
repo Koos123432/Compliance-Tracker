@@ -1,204 +1,204 @@
 import { Server as HttpServer } from 'http';
-import { WebSocketServer, WebSocket } from 'ws';
-import { v4 as uuidv4 } from 'uuid';
+import WebSocket, { WebSocketServer } from 'ws';
 
-interface WSMessage {
-  type: string;
-  entity?: string;
-  entityId?: number;
-  action?: string;
-  data?: any;
-  userId?: number;
-  userName?: string;
-  timestamp?: number;
-  message?: string;
-  id?: string;
-}
-
-interface WSClient {
-  socket: WebSocket;
+// Types
+interface WebSocketClient {
   userId: number;
-  subscriptions: Set<string>;
+  socket: WebSocket;
+  subscriptions: Set<string>; // Format: entityType-entityId
 }
 
-export default function setupWebSocketServer(httpServer: HttpServer) {
-  // Create WebSocket server with custom path - use a more distinct path to avoid conflicts
-  const wss = new WebSocketServer({ server: httpServer, path: '/api/ws' });
+interface BroadcastMessage {
+  type: string;
+  entity: string;
+  entityId: number;
+  action: string;
+  data?: any;
+}
+
+// Client tracking
+const clients: Map<WebSocket, WebSocketClient> = new Map();
+
+// WebSocket server setup
+export function setupWebSocketServer(server: HttpServer) {
+  const wss = new WebSocketServer({ server, path: '/api/ws' });
   
-  // Store connected clients and their subscriptions
-  const clients = new Map<WebSocket, WSClient>();
+  console.log('WebSocket server initialized at /api/ws');
   
-  // Store message history for each entity
-  const messageHistory = new Map<string, WSMessage[]>();
-  
-  // Function to get a key for entity + id combination
-  const getEntityKey = (entity: string, id: number): string => `${entity}:${id}`;
-  
-  // Function to broadcast a message to all subscribed clients
-  const broadcastToEntity = (entityKey: string, message: WSMessage) => {
-    // Add message to history if it's a chat message
-    if (message.type === 'chat') {
-      if (!messageHistory.has(entityKey)) {
-        messageHistory.set(entityKey, []);
-      }
-      
-      const history = messageHistory.get(entityKey)!;
-      // Keep only the last 100 messages
-      if (history.length >= 100) {
-        history.shift();
-      }
-      history.push(message);
-    }
-    
-    // Broadcast to all clients subscribed to this entity
-    clients.forEach((client) => {
-      if (client.subscriptions.has(entityKey) && client.socket.readyState === WebSocket.OPEN) {
-        client.socket.send(JSON.stringify(message));
-      }
-    });
-  };
-  
-  // Function to get active users for an entity
-  const getActiveUsersForEntity = (entityKey: string): any[] => {
-    const activeUsers: any[] = [];
-    clients.forEach((client) => {
-      if (client.subscriptions.has(entityKey)) {
-        activeUsers.push({
-          userId: client.userId,
-          userName: `User ${client.userId}`, // In a real app, fetch user details
-          joinedAt: Date.now()
-        });
-      }
-    });
-    return activeUsers;
-  };
-  
-  // Handle new connections
   wss.on('connection', (socket) => {
-    console.log('WebSocket client connected');
+    console.log('New WebSocket connection established');
     
-    // Create a new client entry with default values
-    const client: WSClient = {
+    // Initialize client data
+    const client: WebSocketClient = {
+      userId: 0, // Will be set after authentication
       socket,
-      userId: 0, // Will be set on auth message
       subscriptions: new Set()
     };
     
+    // Store client in our map
     clients.set(socket, client);
     
-    // Handle client messages
-    socket.on('message', (data) => {
+    // Handle messages from client
+    socket.on('message', (message) => {
       try {
-        const message: WSMessage = JSON.parse(data.toString());
-        message.id = message.id || uuidv4();
-        message.timestamp = message.timestamp || Date.now();
-        
-        // Handle different message types
-        switch (message.type) {
-          case 'auth':
-            // Authenticate the client
-            client.userId = message.userId || 0;
-            console.log(`Client authenticated with userId: ${client.userId}`);
-            break;
-            
-          case 'subscribe':
-            // Client subscribes to an entity's updates
-            if (message.entity && message.entityId !== undefined) {
-              const entityKey = getEntityKey(message.entity, message.entityId);
-              client.subscriptions.add(entityKey);
-              console.log(`Client ${client.userId} subscribed to ${entityKey}`);
-              
-              // Send message history for this entity
-              if (messageHistory.has(entityKey)) {
-                socket.send(JSON.stringify({
-                  type: 'history',
-                  entity: message.entity,
-                  entityId: message.entityId,
-                  data: messageHistory.get(entityKey),
-                  timestamp: Date.now()
-                }));
-              }
-              
-              // Send active users list
-              socket.send(JSON.stringify({
-                type: 'users',
-                entity: message.entity,
-                entityId: message.entityId,
-                data: getActiveUsersForEntity(entityKey),
-                timestamp: Date.now()
-              }));
-            }
-            break;
-            
-          case 'unsubscribe':
-            // Client unsubscribes from an entity's updates
-            if (message.entity && message.entityId !== undefined) {
-              const entityKey = getEntityKey(message.entity, message.entityId);
-              client.subscriptions.delete(entityKey);
-              console.log(`Client ${client.userId} unsubscribed from ${entityKey}`);
-            }
-            break;
-            
-          case 'chat':
-            // Handle chat message for an entity
-            if (message.entity && message.entityId !== undefined) {
-              const entityKey = getEntityKey(message.entity, message.entityId);
-              message.userName = message.userName || `User ${client.userId}`;
-              broadcastToEntity(entityKey, message);
-            }
-            break;
-            
-          case 'presence':
-            // Handle presence updates (join/leave)
-            if (message.entity && message.entityId !== undefined && message.action) {
-              const entityKey = getEntityKey(message.entity, message.entityId);
-              message.userName = message.userName || `User ${client.userId}`;
-              broadcastToEntity(entityKey, message);
-            }
-            break;
-            
-          case 'broadcast':
-            // Broadcast an update for an entity
-            if (message.entity && message.entityId !== undefined && message.action) {
-              const entityKey = getEntityKey(message.entity, message.entityId);
-              broadcastToEntity(entityKey, message);
-            }
-            break;
-            
-          default:
-            console.log(`Unknown message type: ${message.type}`);
-        }
-        
+        const data = JSON.parse(message.toString());
+        console.log('Received WebSocket message:', data);
+        handleClientMessage(client, data);
       } catch (error) {
-        console.error('Error processing message:', error);
+        console.error('Error parsing WebSocket message:', error);
       }
     });
     
-    // Handle disconnection
+    // Handle client disconnection
     socket.on('close', () => {
-      const client = clients.get(socket);
-      if (client) {
-        // Notify all subscribed entities about the client leaving
-        client.subscriptions.forEach((entityKey) => {
-          const [entity, idStr] = entityKey.split(':');
-          const entityId = parseInt(idStr);
-          
-          broadcastToEntity(entityKey, {
-            type: 'presence',
-            action: 'leave',
-            entity,
-            entityId,
-            userId: client.userId,
-            userName: `User ${client.userId}`,
-            timestamp: Date.now()
-          });
-        });
-        
-        clients.delete(socket);
-        console.log(`WebSocket client disconnected (userId: ${client.userId})`);
-      }
+      console.log('WebSocket connection closed');
+      clients.delete(socket);
     });
+    
+    // Handle errors
+    socket.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      clients.delete(socket);
+    });
+    
+    // Send a welcome message
+    socket.send(JSON.stringify({
+      type: 'info',
+      message: 'Connected to compliance management system'
+    }));
   });
   
   return wss;
+}
+
+// Handle messages from clients
+function handleClientMessage(client: WebSocketClient, message: any) {
+  switch (message.type) {
+    case 'authenticate':
+      authenticateClient(client, message.userId);
+      break;
+      
+    case 'subscribe':
+      subscribeToEntity(client, message.entity, message.entityId);
+      break;
+      
+    case 'unsubscribe':
+      unsubscribeFromEntity(client, message.entity, message.entityId);
+      break;
+      
+    case 'status':
+      // Send back the client's current subscriptions
+      client.socket.send(JSON.stringify({
+        type: 'status',
+        userId: client.userId,
+        subscriptions: Array.from(client.subscriptions)
+      }));
+      break;
+      
+    default:
+      console.warn(`Unknown WebSocket message type: ${message.type}`);
+      client.socket.send(JSON.stringify({
+        type: 'error',
+        message: `Unknown message type: ${message.type}`
+      }));
+  }
+}
+
+// Authenticate a client with a user ID
+function authenticateClient(client: WebSocketClient, userId: number) {
+  client.userId = userId;
+  console.log(`Client authenticated as user ${userId}`);
+  
+  // Notify the client of successful authentication
+  client.socket.send(JSON.stringify({
+    type: 'authenticated',
+    userId
+  }));
+  
+  // Send any pending notifications or updates for this user
+  // ...
+}
+
+// Subscribe a client to entity updates
+function subscribeToEntity(client: WebSocketClient, entityType: string, entityId: number) {
+  const subscriptionKey = `${entityType}-${entityId}`;
+  client.subscriptions.add(subscriptionKey);
+  
+  console.log(`User ${client.userId} subscribed to ${subscriptionKey}`);
+  
+  // Confirm subscription to client
+  client.socket.send(JSON.stringify({
+    type: 'subscribed',
+    entity: entityType,
+    entityId
+  }));
+}
+
+// Unsubscribe a client from entity updates
+function unsubscribeFromEntity(client: WebSocketClient, entityType: string, entityId: number) {
+  const subscriptionKey = `${entityType}-${entityId}`;
+  client.subscriptions.delete(subscriptionKey);
+  
+  console.log(`User ${client.userId} unsubscribed from ${subscriptionKey}`);
+  
+  // Confirm unsubscription to client
+  client.socket.send(JSON.stringify({
+    type: 'unsubscribed',
+    entity: entityType,
+    entityId
+  }));
+}
+
+// Broadcast a message to all clients subscribed to an entity
+export function broadcastMessage(message: BroadcastMessage) {
+  if (!message.entity || !message.entityId) {
+    console.error('Invalid broadcast message, missing entity or entityId:', message);
+    return;
+  }
+  
+  broadcastMessageToClients(message);
+}
+
+// Internal function to broadcast messages to appropriate clients
+function broadcastMessageToClients(message: BroadcastMessage) {
+  const subscriptionKey = `${message.entity}-${message.entityId}`;
+  let recipientCount = 0;
+  
+  // Broadcast to all clients subscribed to this entity
+  clients.forEach((client) => {
+    if (client.subscriptions.has(subscriptionKey) && client.socket.readyState === WebSocket.OPEN) {
+      client.socket.send(JSON.stringify(message));
+      recipientCount++;
+    }
+  });
+  
+  console.log(`Broadcast message to ${recipientCount} clients for ${subscriptionKey}`);
+}
+
+// Send a direct message to a specific user
+export function sendDirectMessage(userId: number, message: any) {
+  let sent = false;
+  
+  clients.forEach((client) => {
+    if (client.userId === userId && client.socket.readyState === WebSocket.OPEN) {
+      client.socket.send(JSON.stringify(message));
+      sent = true;
+    }
+  });
+  
+  return sent;
+}
+
+// Clean up all connections (used during shutdown)
+export function closeAllConnections() {
+  clients.forEach((client, socket) => {
+    try {
+      socket.close();
+    } catch (error) {
+      console.error('Error closing WebSocket connection:', error);
+    }
+  });
+  
+  clients.clear();
+  console.log('All WebSocket connections closed');
 }

@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
+import WebSocketIndicator from '@/components/WebSocketIndicator';
 
 interface HeaderProps {
   username?: string;
@@ -40,6 +41,7 @@ export default function Header({ username = "J. Smith", onMenuToggle }: HeaderPr
     if (location.startsWith('/schedule')) return 'schedule';
     if (location.startsWith('/reports')) return 'reports';
     if (location.startsWith('/organization')) return 'organization';
+    if (location.startsWith('/dispatch')) return 'dispatch';
     return 'inspections';
   };
 
@@ -57,6 +59,8 @@ export default function Header({ username = "J. Smith", onMenuToggle }: HeaderPr
           <h1 className="text-xl font-medium">ComplianceWorks</h1>
         </div>
         <div className="flex items-center">
+          <WebSocketIndicator className="mr-4 hidden md:block" />
+          
           <Button 
             variant="ghost" 
             className="mr-3 text-white hover:bg-primary-dark hover:text-white"
@@ -113,6 +117,12 @@ export default function Header({ username = "J. Smith", onMenuToggle }: HeaderPr
               className="data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:rounded-none data-[state=inactive]:text-white/70 data-[state=inactive]:bg-transparent px-4 py-2 text-white"
             >
               Schedule
+            </TabsTrigger>
+            <TabsTrigger 
+              value="dispatch"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:rounded-none data-[state=inactive]:text-white/70 data-[state=inactive]:bg-transparent px-4 py-2 text-white"
+            >
+              Dispatch
             </TabsTrigger>
             <TabsTrigger 
               value="reports"
