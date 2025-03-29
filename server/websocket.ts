@@ -21,9 +21,9 @@ const clients: Map<WebSocket, WebSocketClient> = new Map();
 
 // WebSocket server setup
 export function setupWebSocketServer(server: HttpServer) {
-  const wss = new WebSocketServer({ server, path: '/api/ws' });
+  const wss = new WebSocketServer({ server, path: '/ws' });
   
-  console.log('WebSocket server initialized at /api/ws');
+  console.log('WebSocket server initialized at /ws');
   
   wss.on('connection', (socket) => {
     console.log('New WebSocket connection established');

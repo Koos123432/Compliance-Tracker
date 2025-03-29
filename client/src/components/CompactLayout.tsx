@@ -129,16 +129,7 @@ const InCarModeLayout = () => {
         entityId: 1 // Hardcoded user ID for demo
       });
       
-      // Set up a message handler to listen for the last message from WebSocket
-      const handleNewAssignment = () => {
-        if (lastMessage && lastMessage.type === 'assignment' && lastMessage.action === 'new') {
-          playSoundAlert(lastMessage.data?.priority || 'medium');
-          refetchJobs();
-        }
-      };
-      
-      // Call the handler when lastMessage changes
-      handleNewAssignment();
+      console.log('Subscribed to assignments updates in car mode');
       
       return () => {
         // Unsubscribe when component unmounts
@@ -147,9 +138,19 @@ const InCarModeLayout = () => {
           entity: 'assignments',
           entityId: 1
         });
+        console.log('Unsubscribed from assignments in car mode');
       };
     }
-  }, [connectionState, sendMessage, lastMessage, refetchJobs]);
+  }, [connectionState, sendMessage]);
+  
+  // Handle incoming WebSocket messages
+  useEffect(() => {
+    if (lastMessage && lastMessage.type === 'assignment' && lastMessage.action === 'new') {
+      console.log('Received new assignment in car mode:', lastMessage);
+      playSoundAlert(lastMessage.data?.priority || 'medium');
+      refetchJobs();
+    }
+  }, [lastMessage, refetchJobs]);
   
   // Handler to mark job complete
   const handleJobComplete = async (jobId: number) => {

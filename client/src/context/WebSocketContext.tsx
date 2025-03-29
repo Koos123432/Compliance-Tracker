@@ -40,7 +40,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     
     // Determine WebSocket URL (ws or wss based on page protocol)
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/api/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
     console.log(`Connecting to WebSocket at ${wsUrl}`);
     setConnectionState('connecting');
