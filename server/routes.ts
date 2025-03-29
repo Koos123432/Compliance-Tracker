@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import setupWebSocketServer from "./websocket";
 import { 
   insertInspectionSchema, 
   insertPersonSchema, 
@@ -37,6 +38,9 @@ import { format } from "date-fns";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  
+  // Set up WebSocket server for real-time communication
+  const wss = setupWebSocketServer(httpServer);
 
   // Helper function to generate unique numbers with prefix
   function generateUniqueNumber(prefix: string): string {

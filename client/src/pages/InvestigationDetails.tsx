@@ -41,13 +41,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Plus, Clock, AlertTriangle, CheckCircle, FileText, Check, X, Calendar, User, Users, History, Link, UserPlus } from "lucide-react";
+import { ArrowLeft, Plus, Clock, AlertTriangle, CheckCircle, FileText, Check, X, Calendar, User, Users, History, Link, UserPlus, MessageSquare } from "lucide-react";
 import RelationshipManager from "@/components/RelationshipManager";
 import TimelineManager from "@/components/TimelineManager";
 import ReportLinkManager from "@/components/ReportLinkManager";
 import InvestigationParticipants from "@/components/InvestigationParticipants";
 import OffenceManager from "@/components/OffenceManager";
 import BriefManager from "@/components/BriefManager";
+import CollaborationPanel from "@/components/CollaborationPanel";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -444,7 +445,7 @@ export default function InvestigationDetails() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-9 mb-4">
+          <TabsList className="grid grid-cols-10 mb-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tracking">Tracking Notices</TabsTrigger>
             <TabsTrigger value="evidence">Elements of Proof</TabsTrigger>
@@ -466,6 +467,10 @@ export default function InvestigationDetails() {
             </TabsTrigger>
             <TabsTrigger value="offences">Offences</TabsTrigger>
             <TabsTrigger value="briefs">Briefs</TabsTrigger>
+            <TabsTrigger value="collaboration">
+              <MessageSquare className="w-4 h-4 mr-1" />
+              Collaborate
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">
@@ -660,6 +665,10 @@ export default function InvestigationDetails() {
           
           <TabsContent value="briefs" className="space-y-4">
             <BriefManager investigationId={id} />
+          </TabsContent>
+          
+          <TabsContent value="collaboration" className="space-y-4">
+            <CollaborationPanel entityType="investigation" entityId={id} entityName={investigation.title} />
           </TabsContent>
         </Tabs>
       </main>
