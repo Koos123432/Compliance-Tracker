@@ -14,7 +14,10 @@ import {
   insertTeamSchema,
   insertTeamMemberSchema,
   insertTeamScheduleSchema,
-  insertTeamScheduleAssignmentSchema
+  insertTeamScheduleAssignmentSchema,
+  insertOfficerNoteSchema,
+  insertTrackingNoticeSchema,
+  insertElementOfProofSchema
 } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -653,6 +656,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Officer Notes routes
+  app.get("/api/entity/:entityType/:entityId/notes", async (req: Request, res: Response) => {
+    try {
+      const entityId = Number(req.params.entityId);
+      const entityType = req.params.entityType;
+      const notes = await storage.getOfficerNotes(entityId, entityType);
+      res.json(notes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch officer notes" });
+    }
+  });
+
+  app.get("/api/users/:userId/notes", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const notes = await storage.getOfficerNotesByUser(userId);
+      res.json(notes);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch officer notes" });
+    }
+  });
+
+  app.post("/api/officer-notes", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertOfficerNoteSchema.parse(req.body);
+      const note = await storage.createOfficerNote(validatedData);
+      res.status(201).json(note);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid officer note data", error });
+    }
+  });
+
+  app.patch("/api/officer-notes/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const note = await storage.getOfficerNote(id);
+      if (!note) {
+        return res.status(404).json({ message: "Officer note not found" });
+      }
+      
+      const updatedNote = await storage.updateOfficerNote(id, req.body);
+      res.json(updatedNote);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update officer note", error });
+    }
+  });
+
+  app.delete("/api/officer-notes/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const note = await storage.getOfficerNote(id);
+      if (!note) {
+        return res.status(404).json({ message: "Officer note not found" });
+      }
+      
+      await storage.deleteOfficerNote(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete officer note" });
+    }
+  });
+
+  // Tracking Notices routes
+  app.get("/api/investigations/:id/tracking-notices", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      const notices = await storage.getTrackingNotices(investigationId);
+      res.json(notices);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch tracking notices" });
+    }
+  });
+
+  app.post("/api/tracking-notices", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertTrackingNoticeSchema.parse(req.body);
+      const notice = await storage.createTrackingNotice(validatedData);
+      res.status(201).json(notice);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid tracking notice data", error });
+    }
+  });
+
+  app.patch("/api/tracking-notices/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const notice = await storage.getTrackingNotice(id);
+      if (!notice) {
+        return res.status(404).json({ message: "Tracking notice not found" });
+      }
+      
+      const updatedNotice = await storage.updateTrackingNotice(id, req.body);
+      res.json(updatedNotice);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update tracking notice", error });
+    }
+  });
+
+  app.delete("/api/tracking-notices/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const notice = await storage.getTrackingNotice(id);
+      if (!notice) {
+        return res.status(404).json({ message: "Tracking notice not found" });
+      }
+      
+      await storage.deleteTrackingNotice(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete tracking notice" });
+    }
+  });
+
+  // Elements of Proof routes
+  app.get("/api/investigations/:id/elements-of-proof", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      const elements = await storage.getElementsOfProof(investigationId);
+      res.json(elements);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch elements of proof" });
+    }
+  });
+
+  app.post("/api/elements-of-proof", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertElementOfProofSchema.parse(req.body);
+      const element = await storage.createElementOfProof(validatedData);
+      res.status(201).json(element);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid element of proof data", error });
+    }
+  });
+
+  app.patch("/api/elements-of-proof/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const element = await storage.getElementOfProof(id);
+      if (!element) {
+        return res.status(404).json({ message: "Element of proof not found" });
+      }
+      
+      const updatedElement = await storage.updateElementOfProof(id, req.body);
+      res.json(updatedElement);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update element of proof", error });
+    }
+  });
+
+  app.delete("/api/elements-of-proof/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const element = await storage.getElementOfProof(id);
+      if (!element) {
+        return res.status(404).json({ message: "Element of proof not found" });
+      }
+      
+      await storage.deleteElementOfProof(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete element of proof" });
+    }
+  });
+
   // Initialize some demo data
   const demoData = async () => {
     // Check if we already have inspections
@@ -781,6 +948,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
       priority: "medium",
       isRead: false
     });
+    
+    // Create officer notes
+    await storage.createOfficerNote({
+      userId: 1,
+      entityId: 1,
+      entityType: "inspection",
+      content: "Spoke with site manager who confirmed all workers have valid inductions",
+      visibility: "team",
+      tags: "site visit,interview"
+    });
+    
+    await storage.createOfficerNote({
+      userId: 2,
+      entityId: 1,
+      entityType: "inspection",
+      content: "Verified safety equipment is properly maintained and accessible",
+      visibility: "team",
+      tags: "safety,equipment"
+    });
+    
+    // Create a tracking notice
+    const investigation = await storage.getInvestigation(1);
+    if (investigation) {
+      await storage.createTrackingNotice({
+        investigationId: investigation.id,
+        assignedOfficerId: 1,
+        title: "Initial Notice of Non-Compliance",
+        noticeType: "warning",
+        recipientName: "John Builder",
+        recipientEmail: "john@builderexample.com",
+        recipientAddress: "123 Builder St, Sydney NSW 2000",
+        description: "Notice regarding unsafe scaffolding practices",
+        status: "draft",
+        sentDate: null,
+        responseDate: null,
+        dueDate: new Date(Date.now() + 7 * 86400000), // 7 days from now
+        documentUrl: null
+      });
+      
+      // Create elements of proof
+      await storage.createElementOfProof({
+        investigationId: investigation.id,
+        title: "Site Photographs",
+        description: "Photographs showing unsafe scaffolding conditions",
+        category: "photographic",
+        collectedBy: 1,
+        status: "collected",
+        notes: "Photos clearly show missing guardrails on third level scaffolding",
+        source: "Site inspection",
+        collectedDate: new Date(),
+        verifiedBy: null,
+        verifiedDate: null,
+        dueDate: new Date(Date.now() + 3 * 86400000), // 3 days from now
+        fileUrl: null
+      });
+      
+      await storage.createElementOfProof({
+        investigationId: investigation.id,
+        title: "Worker Statement",
+        description: "Statement from worker regarding safety practices",
+        category: "testimony",
+        collectedBy: 1,
+        status: "pending",
+        notes: "Need to collect formal statement from worker who reported issue",
+        source: "Anonymous report",
+        collectedDate: null,
+        verifiedBy: null,
+        verifiedDate: null,
+        dueDate: new Date(Date.now() + 5 * 86400000), // 5 days from now
+        fileUrl: null
+      });
+    }
   };
   
   // Initialize demo data

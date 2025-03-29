@@ -228,10 +228,7 @@ export default function Investigations() {
                       </span>
                     </div>
                     <Button variant="ghost" size="sm" asChild className="p-0 h-auto">
-                      <span onClick={() => toast({
-                        title: "Coming Soon",
-                        description: "Investigation details view is under development",
-                      })}>
+                      <span onClick={() => navigate(`/investigations/${investigation.id}`)}>
                         View Details
                       </span>
                     </Button>

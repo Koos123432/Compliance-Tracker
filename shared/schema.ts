@@ -283,3 +283,83 @@ export type InsertTeamSchedule = z.infer<typeof insertTeamScheduleSchema>;
 
 export type TeamScheduleAssignment = typeof teamScheduleAssignments.$inferSelect;
 export type InsertTeamScheduleAssignment = z.infer<typeof insertTeamScheduleAssignmentSchema>;
+
+// Officer notes for collaborative documentation
+export const officerNotes = pgTable("officer_notes", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  entityId: integer("entity_id").notNull(),
+  entityType: text("entity_type").notNull(), // 'inspection', 'investigation', 'person', etc.
+  content: text("content").notNull(),
+  tags: text("tags"),
+  visibility: text("visibility").notNull().default("team"), // 'private', 'team', 'public'
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertOfficerNoteSchema = createInsertSchema(officerNotes).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Tracking notices for investigations
+export const trackingNotices = pgTable("tracking_notices", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  noticeType: text("notice_type").notNull(), // 'warning', 'infringement', 'stop work', etc.
+  status: text("status").notNull().default("draft"), // 'draft', 'review', 'sent', 'acknowledged', 'closed'
+  recipientName: text("recipient_name").notNull(),
+  recipientEmail: text("recipient_email"),
+  recipientPhone: text("recipient_phone"),
+  issuedDate: timestamp("issued_date"),
+  dueDate: timestamp("due_date"),
+  closedDate: timestamp("closed_date"),
+  assignedOfficerId: integer("assigned_officer_id").notNull(),
+  reviewedById: integer("reviewed_by_id"),
+  reviewNotes: text("review_notes"),
+  documentUrl: text("document_url"),
+  createdAt: timestamp("created_at").notNull(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertTrackingNoticeSchema = createInsertSchema(trackingNotices).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Elements of proof for investigations
+export const elementsOfProof = pgTable("elements_of_proof", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(), // 'document', 'witness', 'photo', 'video', etc.
+  status: text("status").notNull().default("pending"), // 'pending', 'obtained', 'verified', 'rejected'
+  source: text("source"),
+  collectedBy: integer("collected_by").notNull(),
+  collectedDate: timestamp("collected_date"),
+  verifiedBy: integer("verified_by"),
+  verifiedDate: timestamp("verified_date"),
+  notes: text("notes"),
+  fileUrl: text("file_url"),
+  createdAt: timestamp("created_at").notNull(),
+});
+
+export const insertElementOfProofSchema = createInsertSchema(elementsOfProof).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type exports for new tables
+export type OfficerNote = typeof officerNotes.$inferSelect;
+export type InsertOfficerNote = z.infer<typeof insertOfficerNoteSchema>;
+
+export type TrackingNotice = typeof trackingNotices.$inferSelect;
+export type InsertTrackingNotice = z.infer<typeof insertTrackingNoticeSchema>;
+
+export type ElementOfProof = typeof elementsOfProof.$inferSelect;
+export type InsertElementOfProof = z.infer<typeof insertElementOfProofSchema>;

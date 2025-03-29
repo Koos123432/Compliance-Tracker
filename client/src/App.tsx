@@ -11,6 +11,7 @@ import DocumentBreach from "@/pages/DocumentBreach";
 import Schedule from "@/pages/Schedule";
 import Reports from "@/pages/Reports";
 import Investigations from "@/pages/Investigations";
+import InvestigationDetails from "@/pages/InvestigationDetails";
 
 function Router() {
   return (
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/schedule" component={Schedule} />
       <Route path="/reports" component={Reports} />
       <Route path="/investigations" component={Investigations} />
+      <Route path="/investigations/:id" component={InvestigationDetails} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

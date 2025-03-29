@@ -12,7 +12,10 @@ import {
   type Team, type InsertTeam, teams,
   type TeamMember, type InsertTeamMember, teamMembers,
   type TeamSchedule, type InsertTeamSchedule, teamSchedules,
-  type TeamScheduleAssignment, type InsertTeamScheduleAssignment, teamScheduleAssignments
+  type TeamScheduleAssignment, type InsertTeamScheduleAssignment, teamScheduleAssignments,
+  type OfficerNote, type InsertOfficerNote, officerNotes,
+  type TrackingNotice, type InsertTrackingNotice, trackingNotices,
+  type ElementOfProof, type InsertElementOfProof, elementsOfProof
 } from "@shared/schema";
 
 // Storage interface
@@ -107,6 +110,28 @@ export interface IStorage {
   assignTeamSchedule(assignment: InsertTeamScheduleAssignment): Promise<TeamScheduleAssignment>;
   updateAssignmentStatus(id: number, status: string, notes?: string): Promise<TeamScheduleAssignment | undefined>;
   deleteAssignment(id: number): Promise<boolean>;
+  
+  // Officer Notes methods
+  getOfficerNotes(entityId: number, entityType: string): Promise<OfficerNote[]>;
+  getOfficerNotesByUser(userId: number): Promise<OfficerNote[]>;
+  getOfficerNote(id: number): Promise<OfficerNote | undefined>;
+  createOfficerNote(note: InsertOfficerNote): Promise<OfficerNote>;
+  updateOfficerNote(id: number, note: Partial<InsertOfficerNote>): Promise<OfficerNote | undefined>;
+  deleteOfficerNote(id: number): Promise<boolean>;
+  
+  // Tracking Notices methods
+  getTrackingNotices(investigationId: number): Promise<TrackingNotice[]>;
+  getTrackingNotice(id: number): Promise<TrackingNotice | undefined>;
+  createTrackingNotice(notice: InsertTrackingNotice): Promise<TrackingNotice>;
+  updateTrackingNotice(id: number, notice: Partial<InsertTrackingNotice>): Promise<TrackingNotice | undefined>;
+  deleteTrackingNotice(id: number): Promise<boolean>;
+  
+  // Elements of Proof methods
+  getElementsOfProof(investigationId: number): Promise<ElementOfProof[]>;
+  getElementOfProof(id: number): Promise<ElementOfProof | undefined>;
+  createElementOfProof(element: InsertElementOfProof): Promise<ElementOfProof>;
+  updateElementOfProof(id: number, element: Partial<InsertElementOfProof>): Promise<ElementOfProof | undefined>;
+  deleteElementOfProof(id: number): Promise<boolean>;
 }
 
 // In-memory storage implementation
@@ -125,6 +150,9 @@ export class MemStorage implements IStorage {
   private teamMembers: Map<string, TeamMember>; // Composite key: `${teamId}-${userId}`
   private teamSchedules: Map<number, TeamSchedule>;
   private teamScheduleAssignments: Map<number, TeamScheduleAssignment>;
+  private officerNotes: Map<number, OfficerNote>;
+  private trackingNotices: Map<number, TrackingNotice>;
+  private elementsOfProof: Map<number, ElementOfProof>;
   
   private userId: number;
   private inspectionId: number;
@@ -139,6 +167,9 @@ export class MemStorage implements IStorage {
   private teamId: number;
   private teamScheduleId: number;
   private teamScheduleAssignmentId: number;
+  private officerNoteId: number;
+  private trackingNoticeId: number;
+  private elementOfProofId: number;
   
   constructor() {
     this.users = new Map();
@@ -155,6 +186,9 @@ export class MemStorage implements IStorage {
     this.teamMembers = new Map();
     this.teamSchedules = new Map();
     this.teamScheduleAssignments = new Map();
+    this.officerNotes = new Map();
+    this.trackingNotices = new Map();
+    this.elementsOfProof = new Map();
     
     this.userId = 1;
     this.inspectionId = 1;
@@ -169,6 +203,9 @@ export class MemStorage implements IStorage {
     this.teamId = 1;
     this.teamScheduleId = 1;
     this.teamScheduleAssignmentId = 1;
+    this.officerNoteId = 1;
+    this.trackingNoticeId = 1;
+    this.elementOfProofId = 1;
     
     // Create default users
     this.createUser({
@@ -677,6 +714,133 @@ export class MemStorage implements IStorage {
 
   async deleteAssignment(id: number): Promise<boolean> {
     return this.teamScheduleAssignments.delete(id);
+  }
+  
+  // Officer Notes methods
+  async getOfficerNotes(entityId: number, entityType: string): Promise<OfficerNote[]> {
+    return Array.from(this.officerNotes.values())
+      .filter(note => note.entityId === entityId && note.entityType === entityType)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+  
+  async getOfficerNotesByUser(userId: number): Promise<OfficerNote[]> {
+    return Array.from(this.officerNotes.values())
+      .filter(note => note.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+  
+  async getOfficerNote(id: number): Promise<OfficerNote | undefined> {
+    return this.officerNotes.get(id);
+  }
+  
+  async createOfficerNote(insertNote: InsertOfficerNote): Promise<OfficerNote> {
+    const id = this.officerNoteId++;
+    const note: OfficerNote = {
+      ...insertNote,
+      id,
+      createdAt: new Date()
+    };
+    this.officerNotes.set(id, note);
+    return note;
+  }
+  
+  async updateOfficerNote(id: number, updateData: Partial<InsertOfficerNote>): Promise<OfficerNote | undefined> {
+    const note = this.officerNotes.get(id);
+    if (!note) return undefined;
+    
+    const updatedNote: OfficerNote = {
+      ...note,
+      ...updateData
+    };
+    this.officerNotes.set(id, updatedNote);
+    return updatedNote;
+  }
+  
+  async deleteOfficerNote(id: number): Promise<boolean> {
+    return this.officerNotes.delete(id);
+  }
+  
+  // Tracking Notices methods
+  async getTrackingNotices(investigationId: number): Promise<TrackingNotice[]> {
+    return Array.from(this.trackingNotices.values())
+      .filter(notice => notice.investigationId === investigationId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+  
+  async getTrackingNotice(id: number): Promise<TrackingNotice | undefined> {
+    return this.trackingNotices.get(id);
+  }
+  
+  async createTrackingNotice(insertNotice: InsertTrackingNotice): Promise<TrackingNotice> {
+    const id = this.trackingNoticeId++;
+    const notice: TrackingNotice = {
+      ...insertNotice,
+      id,
+      createdAt: new Date()
+    };
+    this.trackingNotices.set(id, notice);
+    return notice;
+  }
+  
+  async updateTrackingNotice(id: number, updateData: Partial<InsertTrackingNotice>): Promise<TrackingNotice | undefined> {
+    const notice = this.trackingNotices.get(id);
+    if (!notice) return undefined;
+    
+    const updatedNotice: TrackingNotice = {
+      ...notice,
+      ...updateData
+    };
+    this.trackingNotices.set(id, updatedNotice);
+    return updatedNotice;
+  }
+  
+  async deleteTrackingNotice(id: number): Promise<boolean> {
+    return this.trackingNotices.delete(id);
+  }
+  
+  // Elements of Proof methods
+  async getElementsOfProof(investigationId: number): Promise<ElementOfProof[]> {
+    return Array.from(this.elementsOfProof.values())
+      .filter(element => element.investigationId === investigationId)
+      .sort((a, b) => {
+        if (a.dueDate && b.dueDate) {
+          return a.dueDate.getTime() - b.dueDate.getTime();
+        }
+        if (a.dueDate) return -1;
+        if (b.dueDate) return 1;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+  }
+  
+  async getElementOfProof(id: number): Promise<ElementOfProof | undefined> {
+    return this.elementsOfProof.get(id);
+  }
+  
+  async createElementOfProof(insertElement: InsertElementOfProof): Promise<ElementOfProof> {
+    const id = this.elementOfProofId++;
+    const element: ElementOfProof = {
+      ...insertElement,
+      id,
+      createdAt: new Date()
+    };
+    this.elementsOfProof.set(id, element);
+    return element;
+  }
+  
+  async updateElementOfProof(id: number, updateData: Partial<InsertElementOfProof>): Promise<ElementOfProof | undefined> {
+    const element = this.elementsOfProof.get(id);
+    if (!element) return undefined;
+    
+    const updatedElement: ElementOfProof = {
+      ...element,
+      ...updateData
+    };
+    this.elementsOfProof.set(id, updatedElement);
+    return updatedElement;
+  }
+  
+  async deleteElementOfProof(id: number): Promise<boolean> {
+    return this.elementsOfProof.delete(id);
   }
 }
 
