@@ -55,9 +55,9 @@ export default function Investigations() {
   const queryClient = useQueryClient();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   
-  const { data: investigations, isLoading } = useQuery({
+  const { data: investigations = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/investigations"],
   });
   
@@ -103,15 +103,13 @@ export default function Investigations() {
     createInvestigationMutation.mutate(values);
   };
   
-  const filteredInvestigations = investigations
-    ? investigations.filter(
-        (investigation) =>
-          (searchQuery === "" ||
-            investigation.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            investigation.caseNumber.toLowerCase().includes(searchQuery.toLowerCase())) &&
-          (statusFilter === null || investigation.status === statusFilter)
-      )
-    : [];
+  const filteredInvestigations = investigations.filter(
+    (investigation: any) =>
+      (searchQuery === "" ||
+        investigation.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        investigation.caseNumber.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (statusFilter === "all" || investigation.status === statusFilter)
+  );
   
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
@@ -159,14 +157,14 @@ export default function Investigations() {
             </div>
             
             <Select
-              value={statusFilter || ""}
-              onValueChange={(value) => setStatusFilter(value || null)}
+              value={statusFilter}
+              onValueChange={(value) => setStatusFilter(value)}
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Statuses</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="open">Open</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
                 <SelectItem value="closed">Closed</SelectItem>
@@ -198,7 +196,7 @@ export default function Investigations() {
           </div>
         ) : filteredInvestigations.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredInvestigations.map((investigation) => (
+            {filteredInvestigations.map((investigation: any) => (
               <Card key={investigation.id} className="cursor-pointer hover:bg-gray-50 transition-colors">
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">

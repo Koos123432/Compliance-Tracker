@@ -64,11 +64,11 @@ export default function Schedule() {
   const params = new URLSearchParams(location.split("?")[1]);
   const inspectionId = params.get("inspection");
   
-  const { data: schedules, isLoading } = useQuery({
+  const { data: schedules = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/schedules"],
   });
   
-  const { data: inspections } = useQuery({
+  const { data: inspections = [] } = useQuery<any[]>({
     queryKey: ["/api/inspections"],
   });
   
@@ -122,8 +122,6 @@ export default function Schedule() {
   };
   
   const groupSchedulesByDate = () => {
-    if (!schedules) return {};
-    
     const groups: { [key: string]: any[] } = {};
     const today = new Date();
     const tomorrow = addDays(today, 1);
@@ -158,7 +156,7 @@ export default function Schedule() {
       form.setValue("entityType", "inspection");
       
       // Find inspection to pre-fill title
-      const inspection = inspections?.find((i: any) => i.id === parseInt(inspectionId, 10));
+      const inspection = inspections.find((i: any) => i.id === parseInt(inspectionId, 10));
       if (inspection) {
         form.setValue("title", `Follow-up: ${inspection.inspectionNumber}`);
         form.setValue("description", `Follow-up inspection for ${inspection.siteAddress}`);
@@ -356,39 +354,37 @@ export default function Schedule() {
                 )}
               />
               
-              {inspections && (
-                <FormField
-                  control={form.control}
-                  name="entityId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Related Inspection</FormLabel>
-                      <Select
-                        onValueChange={(value) => field.onChange(parseInt(value, 10))}
-                        value={field.value?.toString()}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select an inspection" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="0">None</SelectItem>
-                          {inspections.map((inspection: any) => (
-                            <SelectItem
-                              key={inspection.id}
-                              value={inspection.id.toString()}
-                            >
-                              {inspection.inspectionNumber} - {inspection.siteAddress}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
+              <FormField
+                control={form.control}
+                name="entityId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Related Inspection</FormLabel>
+                    <Select
+                      onValueChange={(value) => field.onChange(parseInt(value, 10))}
+                      value={field.value?.toString()}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select an inspection" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="0">None</SelectItem>
+                        {inspections.map((inspection: any) => (
+                          <SelectItem
+                            key={inspection.id}
+                            value={inspection.id.toString()}
+                          >
+                            {inspection.inspectionNumber} - {inspection.siteAddress}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
               <FormField
                 control={form.control}
