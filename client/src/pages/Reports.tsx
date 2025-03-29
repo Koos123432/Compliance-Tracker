@@ -12,13 +12,16 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Download, Mail, Search, ArrowUpDown, FileText } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Download, Mail, Search, ArrowUpDown, FileText, BarChart, PieChart, LineChart } from "lucide-react";
 import { format } from "date-fns";
 import Header from "@/components/layout/Header";
 import BottomNavigation from "@/components/layout/BottomNavigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { generateInspectionReport, downloadReport } from "@/lib/pdfGenerator";
 import { useToast } from "@/hooks/use-toast";
+import AnalyticsDashboard from "@/components/analytics/AnalyticsDashboard";
+import { processAnalyticsData } from "@/components/analytics/analyticsUtils";
 
 export default function Reports() {
   const [_, navigate] = useLocation();
@@ -109,13 +112,28 @@ export default function Reports() {
     inspection.siteAddress.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
+  // Get breaches for analytics
+  const { data: allBreaches } = useQuery({
+    queryKey: ['/api/breaches'],
+  });
+
+  // Process analytics data
+  const analyticsData = inspections && allBreaches 
+    ? processAnalyticsData(inspections, allBreaches) 
+    : {
+        inspectionsByStatus: [],
+        inspectionsByType: [],
+        breachSeverity: [],
+        inspectionTrends: []
+      };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       
       <main className="flex-1 container mx-auto p-4 pb-20 md:pb-4">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <h1 className="text-2xl font-bold">Reports</h1>
+          <h1 className="text-2xl font-bold">Reports & Analytics</h1>
           
           <div className="relative">
             <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
@@ -128,128 +146,175 @@ export default function Reports() {
           </div>
         </div>
         
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Inspection Reports</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-8 w-full" />
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <Skeleton key={i} className="h-12 w-full" />
-                ))}
-              </div>
-            ) : filteredInspections.length > 0 ? (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[150px]">
-                        <Button
-                          variant="ghost"
-                          className="p-0 h-auto font-medium"
-                          onClick={() => handleSort("inspectionNumber")}
-                        >
-                          Inspection #
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          className="p-0 h-auto font-medium"
-                          onClick={() => handleSort("siteAddress")}
-                        >
-                          Site Address
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="w-[140px]">
-                        <Button
-                          variant="ghost"
-                          className="p-0 h-auto font-medium"
-                          onClick={() => handleSort("inspectionDate")}
-                        >
-                          Date
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="w-[100px]">
-                        <Button
-                          variant="ghost"
-                          className="p-0 h-auto font-medium"
-                          onClick={() => handleSort("status")}
-                        >
-                          Status
-                          <ArrowUpDown className="ml-2 h-3 w-3" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="w-[150px] text-right">
-                        Actions
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInspections.map((inspection) => (
-                      <TableRow key={inspection.id}>
-                        <TableCell className="font-medium">
-                          {inspection.inspectionNumber}
-                        </TableCell>
-                        <TableCell>{inspection.siteAddress}</TableCell>
-                        <TableCell>
-                          {format(new Date(inspection.inspectionDate), "MMM d, yyyy")}
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className={`inline-block px-2 py-1 rounded-full text-xs ${
-                              inspection.status === "completed"
-                                ? "bg-green-100 text-green-800"
-                                : "bg-blue-100 text-blue-800"
-                            }`}
-                          >
-                            {inspection.status === "completed" ? "Completed" : "Scheduled"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadReport(inspection.id)}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => navigate(`/inspections/${inspection.id}`)}
-                            >
-                              <FileText className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
+        <Tabs defaultValue="reports" className="mb-8">
+          <TabsList>
+            <TabsTrigger value="reports" className="flex items-center">
+              <FileText className="h-4 w-4 mr-2" />
+              Reports
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="flex items-center">
+              <BarChart className="h-4 w-4 mr-2" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="reports" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Inspection Reports</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-8 w-full" />
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Skeleton key={i} className="h-12 w-full" />
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center p-8">
-                <FileText className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-                <h2 className="text-lg font-medium mb-1">No Reports Found</h2>
-                <p className="text-gray-500 mb-4">
-                  {searchQuery
-                    ? "No inspections match your search criteria."
-                    : "There are no inspection reports available."}
-                </p>
-                <Button onClick={() => navigate("/inspections/new")}>
-                  Create New Inspection
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </div>
+                ) : filteredInspections.length > 0 ? (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[150px]">
+                            <Button
+                              variant="ghost"
+                              className="p-0 h-auto font-medium"
+                              onClick={() => handleSort("inspectionNumber")}
+                            >
+                              Inspection #
+                              <ArrowUpDown className="ml-2 h-3 w-3" />
+                            </Button>
+                          </TableHead>
+                          <TableHead>
+                            <Button
+                              variant="ghost"
+                              className="p-0 h-auto font-medium"
+                              onClick={() => handleSort("siteAddress")}
+                            >
+                              Site Address
+                              <ArrowUpDown className="ml-2 h-3 w-3" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="w-[140px]">
+                            <Button
+                              variant="ghost"
+                              className="p-0 h-auto font-medium"
+                              onClick={() => handleSort("inspectionDate")}
+                            >
+                              Date
+                              <ArrowUpDown className="ml-2 h-3 w-3" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="w-[100px]">
+                            <Button
+                              variant="ghost"
+                              className="p-0 h-auto font-medium"
+                              onClick={() => handleSort("status")}
+                            >
+                              Status
+                              <ArrowUpDown className="ml-2 h-3 w-3" />
+                            </Button>
+                          </TableHead>
+                          <TableHead className="w-[180px] text-right">
+                            Actions
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredInspections.map((inspection) => (
+                          <TableRow key={inspection.id}>
+                            <TableCell className="font-medium">
+                              {inspection.inspectionNumber}
+                            </TableCell>
+                            <TableCell>{inspection.siteAddress}</TableCell>
+                            <TableCell>
+                              {format(new Date(inspection.inspectionDate), "MMM d, yyyy")}
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`inline-block px-2 py-1 rounded-full text-xs ${
+                                  inspection.status === "completed"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-blue-100 text-blue-800"
+                                }`}
+                              >
+                                {inspection.status === "completed" ? "Completed" : "Scheduled"}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDownloadReport(inspection.id)}
+                                  title="Download Report"
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/inspections/${inspection.id}`)}
+                                  title="View Inspection"
+                                >
+                                  <FileText className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => navigate(`/team-review/${inspection.id}`)}
+                                  title="Submit for Review"
+                                >
+                                  <Mail className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div className="text-center p-8">
+                    <FileText className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                    <h2 className="text-lg font-medium mb-1">No Reports Found</h2>
+                    <p className="text-gray-500 mb-4">
+                      {searchQuery
+                        ? "No inspections match your search criteria."
+                        : "There are no inspection reports available."}
+                    </p>
+                    <Button onClick={() => navigate("/inspections/new")}>
+                      Create New Inspection
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="analytics" className="mt-4">
+            <Card className="mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg">Compliance Analytics Dashboard</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-64 w-full" />
+                  </div>
+                ) : (
+                  <AnalyticsDashboard 
+                    inspectionsByStatus={analyticsData.inspectionsByStatus}
+                    inspectionTrends={analyticsData.inspectionTrends}
+                    inspectionsByType={analyticsData.inspectionsByType}
+                    breachSeverity={analyticsData.breachSeverity}
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
       
       <BottomNavigation onCreateNew={() => navigate("/inspections/new")} />

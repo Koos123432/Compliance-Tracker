@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { broadcastMessage } from "./websocket";
 import { 
   insertInspectionSchema, 
+  insertInspectionReviewSchema,
   insertPersonSchema, 
   insertPhotoSchema, 
   insertBreachSchema, 
@@ -334,6 +335,109 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(report);
     } catch (error) {
       res.status(400).json({ message: "Invalid report data", error });
+    }
+  });
+  
+  // Inspection Review routes
+  app.get("/api/inspections/:id/reviews", async (req: Request, res: Response) => {
+    try {
+      const inspectionId = Number(req.params.id);
+      const reviews = await storage.getInspectionReviews(inspectionId);
+      res.json(reviews);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch inspection reviews" });
+    }
+  });
+  
+  app.post("/api/inspections/:id/reviews", async (req: Request, res: Response) => {
+    try {
+      const inspectionId = Number(req.params.id);
+      const validatedData = insertInspectionReviewSchema.parse({
+        ...req.body,
+        inspectionId
+      });
+      
+      const review = await storage.createInspectionReview(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.reviewerId,
+        activityType: "create_review",
+        description: `Inspection #${inspectionId} reviewed`,
+        entityId: inspectionId,
+        entityType: "inspection"
+      });
+      
+      res.status(201).json(review);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid inspection review data", error });
+    }
+  });
+  
+  app.get("/api/inspection-reviews/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const review = await storage.getInspectionReview(id);
+      
+      if (!review) {
+        return res.status(404).json({ message: "Inspection review not found" });
+      }
+      
+      res.json(review);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch inspection review" });
+    }
+  });
+  
+  app.patch("/api/inspection-reviews/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const existingReview = await storage.getInspectionReview(id);
+      
+      if (!existingReview) {
+        return res.status(404).json({ message: "Inspection review not found" });
+      }
+      
+      const review = await storage.updateInspectionReview(id, req.body);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: req.body.reviewerId || existingReview.reviewerId,
+        activityType: "update_review",
+        description: `Review for inspection #${existingReview.inspectionId} updated`,
+        entityId: id,
+        entityType: "inspection_review"
+      });
+      
+      res.json(review);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update inspection review", error });
+    }
+  });
+  
+  app.delete("/api/inspection-reviews/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const existingReview = await storage.getInspectionReview(id);
+      
+      if (!existingReview) {
+        return res.status(404).json({ message: "Inspection review not found" });
+      }
+      
+      await storage.deleteInspectionReview(id);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: 1, // Default to first user
+        activityType: "delete_review",
+        description: `Review for inspection #${existingReview.inspectionId} deleted`,
+        entityId: existingReview.inspectionId,
+        entityType: "inspection"
+      });
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete inspection review" });
     }
   });
 

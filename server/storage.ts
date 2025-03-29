@@ -1,6 +1,7 @@
 import { 
   type User, type InsertUser, users,
   type Inspection, type InsertInspection, inspections,
+  type InspectionReview, type InsertInspectionReview, inspectionReviews,
   type Person, type InsertPerson, people,
   type Photo, type InsertPhoto, photos,
   type Breach, type InsertBreach, breaches,
@@ -60,6 +61,13 @@ export interface IStorage {
   getInspectionByNumber(number: string): Promise<Inspection | undefined>;
   createInspection(inspection: InsertInspection): Promise<Inspection>;
   updateInspection(id: number, inspection: Partial<InsertInspection>): Promise<Inspection | undefined>;
+  
+  // Inspection Review methods
+  getInspectionReviews(inspectionId: number): Promise<InspectionReview[]>;
+  getInspectionReview(id: number): Promise<InspectionReview | undefined>;
+  createInspectionReview(review: InsertInspectionReview): Promise<InspectionReview>;
+  updateInspectionReview(id: number, review: Partial<InsertInspectionReview>): Promise<InspectionReview | undefined>;
+  deleteInspectionReview(id: number): Promise<boolean>;
   
   // Person methods
   getPeople(inspectionId: number): Promise<Person[]>;
@@ -261,6 +269,7 @@ export class MemStorage implements IStorage {
   private accessLevels: Map<number, AccessLevel>;
   private users: Map<number, User>;
   private inspections: Map<number, Inspection>;
+  private inspectionReviews: Map<number, InspectionReview>;
   private people: Map<number, Person>;
   private photos: Map<number, Photo>;
   private breaches: Map<number, Breach>;
@@ -294,6 +303,7 @@ export class MemStorage implements IStorage {
   private accessLevelId: number;
   private userId: number;
   private inspectionId: number;
+  private inspectionReviewId: number;
   private personId: number;
   private photoId: number;
   private breachId: number;
@@ -326,6 +336,7 @@ export class MemStorage implements IStorage {
     this.accessLevels = new Map();
     this.users = new Map();
     this.inspections = new Map();
+    this.inspectionReviews = new Map();
     this.people = new Map();
     this.photos = new Map();
     this.breaches = new Map();
@@ -361,6 +372,7 @@ export class MemStorage implements IStorage {
     this.accessLevelId = 1;
     this.userId = 1;
     this.inspectionId = 1;
+    this.inspectionReviewId = 1;
     this.personId = 1;
     this.photoId = 1;
     this.breachId = 1;
@@ -621,6 +633,44 @@ export class MemStorage implements IStorage {
     };
     this.inspections.set(id, updatedInspection);
     return updatedInspection;
+  }
+  
+  // Inspection Review methods
+  async getInspectionReviews(inspectionId: number): Promise<InspectionReview[]> {
+    return Array.from(this.inspectionReviews.values()).filter(
+      (review) => review.inspectionId === inspectionId
+    );
+  }
+  
+  async getInspectionReview(id: number): Promise<InspectionReview | undefined> {
+    return this.inspectionReviews.get(id);
+  }
+  
+  async createInspectionReview(insertReview: InsertInspectionReview): Promise<InspectionReview> {
+    const id = this.inspectionReviewId++;
+    const review: InspectionReview = {
+      ...insertReview,
+      id,
+      createdAt: new Date()
+    };
+    this.inspectionReviews.set(id, review);
+    return review;
+  }
+  
+  async updateInspectionReview(id: number, updateData: Partial<InsertInspectionReview>): Promise<InspectionReview | undefined> {
+    const review = this.inspectionReviews.get(id);
+    if (!review) return undefined;
+    
+    const updatedReview: InspectionReview = {
+      ...review,
+      ...updateData
+    };
+    this.inspectionReviews.set(id, updatedReview);
+    return updatedReview;
+  }
+  
+  async deleteInspectionReview(id: number): Promise<boolean> {
+    return this.inspectionReviews.delete(id);
   }
   
   // Person methods

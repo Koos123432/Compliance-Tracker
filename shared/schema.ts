@@ -119,10 +119,30 @@ export const inspections = pgTable("inspections", {
   longitude: text("longitude"),
   notes: text("notes"),
   assignedOfficerId: integer("assigned_officer_id"),
+  // Review fields for team leader review process
+  reviewStatus: text("review_status"), // 'pending', 'approved', 'rejected', 'needs-changes'
+  reviewedBy: integer("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").notNull(),
 });
 
 export const insertInspectionSchema = createInsertSchema(inspections).omit({
+  id: true,
+  createdAt: true,
+  reviewedAt: true,
+});
+
+// Inspection Reviews table
+export const inspectionReviews = pgTable("inspection_reviews", {
+  id: serial("id").primaryKey(),
+  inspectionId: integer("inspection_id").notNull(),
+  reviewerId: integer("reviewer_id").notNull(),
+  comment: text("comment").notNull(),
+  status: text("status").notNull(), // 'approved', 'rejected', 'needs-changes'
+  createdAt: timestamp("created_at").notNull(),
+});
+
+export const insertInspectionReviewSchema = createInsertSchema(inspectionReviews).omit({
   id: true,
   createdAt: true,
 });
@@ -298,6 +318,9 @@ export type InsertUser = z.infer<typeof insertUserSchema>;
 
 export type Inspection = typeof inspections.$inferSelect;
 export type InsertInspection = z.infer<typeof insertInspectionSchema>;
+
+export type InspectionReview = typeof inspectionReviews.$inferSelect;
+export type InsertInspectionReview = z.infer<typeof insertInspectionReviewSchema>;
 
 export type Person = typeof people.$inferSelect;
 export type InsertPerson = z.infer<typeof insertPersonSchema>;
