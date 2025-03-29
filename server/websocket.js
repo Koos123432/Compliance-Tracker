@@ -185,7 +185,7 @@ function closeAllConnections() {
   console.log('All WebSocket connections closed');
 }
 
-module.exports = {
+export {
   setupWebSocketServer,
   broadcastMessage,
   sendDirectMessage,
