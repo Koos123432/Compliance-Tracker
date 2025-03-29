@@ -15,7 +15,10 @@ import {
   type TeamScheduleAssignment, type InsertTeamScheduleAssignment, teamScheduleAssignments,
   type OfficerNote, type InsertOfficerNote, officerNotes,
   type TrackingNotice, type InsertTrackingNotice, trackingNotices,
-  type ElementOfProof, type InsertElementOfProof, elementsOfProof
+  type ElementOfProof, type InsertElementOfProof, elementsOfProof,
+  type PersonRelationship, type InsertPersonRelationship, personRelationships,
+  type TimelineEvent, type InsertTimelineEvent, timelineEvents,
+  type ReportInvestigationLink, type InsertReportInvestigationLink, reportInvestigationLinks
 } from "@shared/schema";
 
 // Storage interface
@@ -132,6 +135,26 @@ export interface IStorage {
   createElementOfProof(element: InsertElementOfProof): Promise<ElementOfProof>;
   updateElementOfProof(id: number, element: Partial<InsertElementOfProof>): Promise<ElementOfProof | undefined>;
   deleteElementOfProof(id: number): Promise<boolean>;
+  
+  // Person Relationship methods
+  getPersonRelationships(personId: number, investigationId?: number): Promise<PersonRelationship[]>;
+  getPersonRelationship(id: number): Promise<PersonRelationship | undefined>;
+  createPersonRelationship(relationship: InsertPersonRelationship): Promise<PersonRelationship>;
+  updatePersonRelationship(id: number, relationship: Partial<InsertPersonRelationship>): Promise<PersonRelationship | undefined>;
+  deletePersonRelationship(id: number): Promise<boolean>;
+  
+  // Timeline Event methods
+  getTimelineEvents(investigationId: number): Promise<TimelineEvent[]>;
+  getTimelineEvent(id: number): Promise<TimelineEvent | undefined>;
+  createTimelineEvent(event: InsertTimelineEvent): Promise<TimelineEvent>;
+  updateTimelineEvent(id: number, event: Partial<InsertTimelineEvent>): Promise<TimelineEvent | undefined>;
+  deleteTimelineEvent(id: number): Promise<boolean>;
+  
+  // Report Investigation Link methods
+  getReportInvestigationLinks(reportId?: number, investigationId?: number): Promise<ReportInvestigationLink[]>;
+  getReportInvestigationLink(id: number): Promise<ReportInvestigationLink | undefined>;
+  createReportInvestigationLink(link: InsertReportInvestigationLink): Promise<ReportInvestigationLink>;
+  deleteReportInvestigationLink(id: number): Promise<boolean>;
 }
 
 // In-memory storage implementation
@@ -153,6 +176,9 @@ export class MemStorage implements IStorage {
   private officerNotes: Map<number, OfficerNote>;
   private trackingNotices: Map<number, TrackingNotice>;
   private elementsOfProof: Map<number, ElementOfProof>;
+  private personRelationships: Map<number, PersonRelationship>;
+  private timelineEvents: Map<number, TimelineEvent>;
+  private reportInvestigationLinks: Map<number, ReportInvestigationLink>;
   
   private userId: number;
   private inspectionId: number;
@@ -170,6 +196,9 @@ export class MemStorage implements IStorage {
   private officerNoteId: number;
   private trackingNoticeId: number;
   private elementOfProofId: number;
+  private personRelationshipId: number;
+  private timelineEventId: number;
+  private reportInvestigationLinkId: number;
   
   constructor() {
     this.users = new Map();
@@ -189,6 +218,9 @@ export class MemStorage implements IStorage {
     this.officerNotes = new Map();
     this.trackingNotices = new Map();
     this.elementsOfProof = new Map();
+    this.personRelationships = new Map();
+    this.timelineEvents = new Map();
+    this.reportInvestigationLinks = new Map();
     
     this.userId = 1;
     this.inspectionId = 1;
@@ -206,6 +238,9 @@ export class MemStorage implements IStorage {
     this.officerNoteId = 1;
     this.trackingNoticeId = 1;
     this.elementOfProofId = 1;
+    this.personRelationshipId = 1;
+    this.timelineEventId = 1;
+    this.reportInvestigationLinkId = 1;
     
     // Create default users
     this.createUser({
@@ -841,6 +876,110 @@ export class MemStorage implements IStorage {
   
   async deleteElementOfProof(id: number): Promise<boolean> {
     return this.elementsOfProof.delete(id);
+  }
+  
+  // Person Relationship methods
+  async getPersonRelationships(personId: number, investigationId?: number): Promise<PersonRelationship[]> {
+    return Array.from(this.personRelationships.values())
+      .filter(relationship => relationship.personId === personId && 
+              (investigationId === undefined || relationship.investigationId === investigationId));
+  }
+  
+  async getPersonRelationship(id: number): Promise<PersonRelationship | undefined> {
+    return this.personRelationships.get(id);
+  }
+  
+  async createPersonRelationship(relationship: InsertPersonRelationship): Promise<PersonRelationship> {
+    const id = this.personRelationshipId++;
+    const personRelationship: PersonRelationship = {
+      ...relationship,
+      id,
+      createdAt: new Date()
+    };
+    this.personRelationships.set(id, personRelationship);
+    return personRelationship;
+  }
+  
+  async updatePersonRelationship(id: number, relationship: Partial<InsertPersonRelationship>): Promise<PersonRelationship | undefined> {
+    const personRelationship = this.personRelationships.get(id);
+    if (!personRelationship) return undefined;
+    
+    const updatedRelationship: PersonRelationship = {
+      ...personRelationship,
+      ...relationship
+    };
+    this.personRelationships.set(id, updatedRelationship);
+    return updatedRelationship;
+  }
+  
+  async deletePersonRelationship(id: number): Promise<boolean> {
+    return this.personRelationships.delete(id);
+  }
+  
+  // Timeline Event methods
+  async getTimelineEvents(investigationId: number): Promise<TimelineEvent[]> {
+    return Array.from(this.timelineEvents.values())
+      .filter(event => event.investigationId === investigationId)
+      .sort((a, b) => a.eventDate.getTime() - b.eventDate.getTime());
+  }
+  
+  async getTimelineEvent(id: number): Promise<TimelineEvent | undefined> {
+    return this.timelineEvents.get(id);
+  }
+  
+  async createTimelineEvent(event: InsertTimelineEvent): Promise<TimelineEvent> {
+    const id = this.timelineEventId++;
+    const timelineEvent: TimelineEvent = {
+      ...event,
+      id,
+      createdAt: new Date()
+    };
+    this.timelineEvents.set(id, timelineEvent);
+    return timelineEvent;
+  }
+  
+  async updateTimelineEvent(id: number, event: Partial<InsertTimelineEvent>): Promise<TimelineEvent | undefined> {
+    const timelineEvent = this.timelineEvents.get(id);
+    if (!timelineEvent) return undefined;
+    
+    const updatedEvent: TimelineEvent = {
+      ...timelineEvent,
+      ...event
+    };
+    this.timelineEvents.set(id, updatedEvent);
+    return updatedEvent;
+  }
+  
+  async deleteTimelineEvent(id: number): Promise<boolean> {
+    return this.timelineEvents.delete(id);
+  }
+  
+  // Report Investigation Link methods
+  async getReportInvestigationLinks(reportId?: number, investigationId?: number): Promise<ReportInvestigationLink[]> {
+    return Array.from(this.reportInvestigationLinks.values())
+      .filter(link => 
+        (reportId === undefined || link.reportId === reportId) && 
+        (investigationId === undefined || link.investigationId === investigationId)
+      );
+  }
+  
+  async getReportInvestigationLink(id: number): Promise<ReportInvestigationLink | undefined> {
+    return this.reportInvestigationLinks.get(id);
+  }
+  
+  async createReportInvestigationLink(link: InsertReportInvestigationLink): Promise<ReportInvestigationLink> {
+    const id = this.reportInvestigationLinkId++;
+    const reportInvestigationLink: ReportInvestigationLink = {
+      ...link,
+      id,
+      createdAt: new Date()
+    };
+    this.reportInvestigationLinks.set(id, reportInvestigationLink);
+    return reportInvestigationLink;
+  }
+  
+  async deleteReportInvestigationLink(id: number): Promise<boolean> {
+    return this.reportInvestigationLinks.delete(id);
   }
 }
 

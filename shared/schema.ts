@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, primaryKey, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -101,7 +101,9 @@ export const investigations = pgTable("investigations", {
   caseNumber: text("case_number").notNull().unique(),
   title: text("title").notNull(),
   description: text("description").notNull(),
-  status: text("status").notNull(),
+  // Enhanced status to support more stages in the legal process
+  status: text("status").notNull(), // 'open', 'pending', 'under_investigation', 'awaiting_legal_action', 'prosecution', 'court', 'closed'
+  statusDetails: text("status_details"), // Additional details about the current status
   priority: text("priority").notNull(),
   assignedOfficerId: integer("assigned_officer_id"),
   createdAt: timestamp("created_at").notNull(),
@@ -112,6 +114,24 @@ export const investigations = pgTable("investigations", {
   lawCode: text("law_code"),
   penalty: text("penalty"),
   offenceCategory: text("offence_category"),
+  // Fine and legal action details
+  fineAmount: text("fine_amount"), // Amount of fine imposed
+  fineCurrency: text("fine_currency").default("USD"), // Currency of fine
+  finePaid: boolean("fine_paid").default(false), // Whether fine has been paid
+  fineDate: timestamp("fine_date"), // Date fine was imposed
+  courtDate: timestamp("court_date"), // Date of court hearing
+  courtLocation: text("court_location"), // Location of court hearing
+  judgeName: text("judge_name"), // Name of presiding judge
+  prosecutorName: text("prosecutor_name"), // Name of prosecutor
+  legalOutcome: text("legal_outcome"), // Outcome of legal proceedings
+  // Inspection report linking
+  linkedInspectionIds: text("linked_inspection_ids").array(), // Array of inspection IDs linked to this investigation
+  // Timeline management
+  startDate: timestamp("start_date"), // When investigation officially began
+  targetCompletionDate: timestamp("target_completion_date"), // Target date for completion
+  actualCompletionDate: timestamp("actual_completion_date"), // Actual completion date
+  lastUpdated: timestamp("last_updated"), // Last time investigation was updated
+  updatedBy: integer("updated_by"), // ID of user who last updated
 });
 
 export const insertInvestigationSchema = createInsertSchema(investigations).omit({
@@ -353,10 +373,79 @@ export const elementsOfProof = pgTable("elements_of_proof", {
   verifiedDate: timestamp("verified_date"),
   notes: text("notes"),
   fileUrl: text("file_url"),
+  // Additional fields for enhanced proof tracking
+  legislationReference: text("legislation_reference"), // Specific legislation section this evidence relates to
+  burdenOfProof: text("burden_of_proof"), // 'beyond reasonable doubt', 'balance of probabilities', etc.
+  evidenceStrength: text("evidence_strength"), // 'strong', 'moderate', 'weak'
+  relevantPersonId: integer("relevant_person_id"), // Link to a person in the people table if relevant
+  timelineDate: timestamp("timeline_date"), // For creating investigation timelines
+  timelinePosition: integer("timeline_position"), // For ordering in timeline
+  isKeyEvidence: boolean("is_key_evidence").default(false), // Marks evidence as key to the case
+  offenceElement: text("offence_element"), // Which element of the offence this evidence proves
+  dueDate: timestamp("due_date"), // When this element needs to be collected by
   createdAt: timestamp("created_at").notNull(),
 });
 
 export const insertElementOfProofSchema = createInsertSchema(elementsOfProof).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Person relationships for tracking connections between people
+export const personRelationships = pgTable("person_relationships", {
+  id: serial("id").primaryKey(),
+  personId: integer("person_id").notNull(), // The primary person
+  relatedPersonId: integer("related_person_id").notNull(), // The person they're related to
+  relationshipType: text("relationship_type").notNull(), // 'business_partner', 'employee', 'supervisor', 'witness', etc.
+  investigationId: integer("investigation_id"), // Optional link to an investigation
+  strength: text("strength"), // 'strong', 'moderate', 'weak'
+  description: text("description"),
+  isVerified: boolean("is_verified").default(false),
+  verifiedBy: integer("verified_by"),
+  verifiedDate: timestamp("verified_date"),
+  createdAt: timestamp("created_at").notNull(),
+});
+
+export const insertPersonRelationshipSchema = createInsertSchema(personRelationships).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Timeline events for tracking case chronology
+export const timelineEvents = pgTable("timeline_events", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  eventDate: timestamp("event_date").notNull(),
+  position: integer("position"), // For manual ordering if needed
+  eventType: text("event_type").notNull(), // 'offence', 'inspection', 'notice', 'evidence', 'legal', etc.
+  relatedEntityId: integer("related_entity_id"), // ID of related entity (proof, notice, etc.)
+  relatedEntityType: text("related_entity_type"), // Type of related entity
+  importance: text("importance").default("normal"), // 'low', 'normal', 'high', 'critical'
+  addedBy: integer("added_by").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+});
+
+export const insertTimelineEventSchema = createInsertSchema(timelineEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Report to Investigation links
+export const reportInvestigationLinks = pgTable("report_investigation_links", {
+  id: serial("id").primaryKey(),
+  reportId: integer("report_id").notNull(),
+  investigationId: integer("investigation_id").notNull(),
+  linkType: text("link_type").notNull(), // 'evidence', 'reference', 'primary', etc.
+  createdAt: timestamp("created_at").notNull(),
+  createdBy: integer("created_by").notNull(),
+  notes: text("notes"),
+}, (t) => ({
+  unq: unique().on(t.reportId, t.investigationId),
+}));
+
+export const insertReportInvestigationLinkSchema = createInsertSchema(reportInvestigationLinks).omit({
   id: true,
   createdAt: true,
 });
@@ -370,3 +459,12 @@ export type InsertTrackingNotice = z.infer<typeof insertTrackingNoticeSchema>;
 
 export type ElementOfProof = typeof elementsOfProof.$inferSelect;
 export type InsertElementOfProof = z.infer<typeof insertElementOfProofSchema>;
+
+export type PersonRelationship = typeof personRelationships.$inferSelect;
+export type InsertPersonRelationship = z.infer<typeof insertPersonRelationshipSchema>;
+
+export type TimelineEvent = typeof timelineEvents.$inferSelect;
+export type InsertTimelineEvent = z.infer<typeof insertTimelineEventSchema>;
+
+export type ReportInvestigationLink = typeof reportInvestigationLinks.$inferSelect;
+export type InsertReportInvestigationLink = z.infer<typeof insertReportInvestigationLinkSchema>;

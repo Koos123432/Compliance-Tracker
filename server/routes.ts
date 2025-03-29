@@ -17,7 +17,10 @@ import {
   insertTeamScheduleAssignmentSchema,
   insertOfficerNoteSchema,
   insertTrackingNoticeSchema,
-  insertElementOfProofSchema
+  insertElementOfProofSchema,
+  insertPersonRelationshipSchema,
+  insertTimelineEventSchema,
+  insertReportInvestigationLinkSchema
 } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -820,6 +823,146 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Person Relationship API endpoints
+  app.get("/api/people/:personId/relationships", async (req: Request, res: Response) => {
+    try {
+      const personId = Number(req.params.personId);
+      const investigationId = req.query.investigationId ? Number(req.query.investigationId) : undefined;
+      const relationships = await storage.getPersonRelationships(personId, investigationId);
+      res.json(relationships);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch person relationships" });
+    }
+  });
+
+  app.post("/api/person-relationships", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertPersonRelationshipSchema.parse(req.body);
+      const relationship = await storage.createPersonRelationship(validatedData);
+      res.status(201).json(relationship);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid person relationship data", error });
+    }
+  });
+
+  app.patch("/api/person-relationships/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const relationship = await storage.getPersonRelationship(id);
+      if (!relationship) {
+        return res.status(404).json({ message: "Person relationship not found" });
+      }
+      
+      const updatedRelationship = await storage.updatePersonRelationship(id, req.body);
+      res.json(updatedRelationship);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update person relationship", error });
+    }
+  });
+
+  app.delete("/api/person-relationships/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const relationship = await storage.getPersonRelationship(id);
+      if (!relationship) {
+        return res.status(404).json({ message: "Person relationship not found" });
+      }
+      
+      await storage.deletePersonRelationship(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete person relationship" });
+    }
+  });
+
+  // Timeline Event API endpoints
+  app.get("/api/investigations/:id/timeline-events", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      const events = await storage.getTimelineEvents(investigationId);
+      res.json(events);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch timeline events" });
+    }
+  });
+
+  app.post("/api/timeline-events", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertTimelineEventSchema.parse(req.body);
+      const event = await storage.createTimelineEvent(validatedData);
+      res.status(201).json(event);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid timeline event data", error });
+    }
+  });
+
+  app.patch("/api/timeline-events/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const event = await storage.getTimelineEvent(id);
+      if (!event) {
+        return res.status(404).json({ message: "Timeline event not found" });
+      }
+      
+      const updatedEvent = await storage.updateTimelineEvent(id, req.body);
+      res.json(updatedEvent);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update timeline event", error });
+    }
+  });
+
+  app.delete("/api/timeline-events/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const event = await storage.getTimelineEvent(id);
+      if (!event) {
+        return res.status(404).json({ message: "Timeline event not found" });
+      }
+      
+      await storage.deleteTimelineEvent(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete timeline event" });
+    }
+  });
+
+  // Report-Investigation Link API endpoints
+  app.get("/api/report-investigation-links", async (req: Request, res: Response) => {
+    try {
+      const reportId = req.query.reportId ? Number(req.query.reportId) : undefined;
+      const investigationId = req.query.investigationId ? Number(req.query.investigationId) : undefined;
+      const links = await storage.getReportInvestigationLinks(reportId, investigationId);
+      res.json(links);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch report-investigation links" });
+    }
+  });
+
+  app.post("/api/report-investigation-links", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertReportInvestigationLinkSchema.parse(req.body);
+      const link = await storage.createReportInvestigationLink(validatedData);
+      res.status(201).json(link);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid report-investigation link data", error });
+    }
+  });
+
+  app.delete("/api/report-investigation-links/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const link = await storage.getReportInvestigationLink(id);
+      if (!link) {
+        return res.status(404).json({ message: "Report-investigation link not found" });
+      }
+      
+      await storage.deleteReportInvestigationLink(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete report-investigation link" });
+    }
+  });
+
   // Initialize some demo data
   const demoData = async () => {
     // Check if we already have inspections
@@ -1018,6 +1161,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
         verifiedDate: null,
         dueDate: new Date(Date.now() + 5 * 86400000), // 5 days from now
         fileUrl: null
+      });
+      
+      // Create demo person relationships
+      const person1 = await storage.createPerson({
+        inspectionId: inspection1.id,
+        name: "John Builder",
+        licenseNumber: "BLD-12345",
+        role: "Site Manager",
+        contactNumber: "0412 555 123",
+        ocrData: null
+      });
+      
+      const person2 = await storage.createPerson({
+        inspectionId: inspection1.id,
+        name: "Sarah Engineer",
+        licenseNumber: "ENG-67890",
+        role: "Structural Engineer",
+        contactNumber: "0413 666 456",
+        ocrData: null
+      });
+      
+      await storage.createPersonRelationship({
+        personId: person1.id,
+        relatedPersonId: person2.id,
+        relationshipType: "supervisor",
+        description: "John supervises Sarah on this project",
+        investigationId: investigation.id,
+        strength: "strong",
+        isVerified: true,
+        verifiedBy: 1,
+        verifiedDate: new Date()
+      });
+      
+      // Create demo timeline events
+      await storage.createTimelineEvent({
+        investigationId: investigation.id,
+        title: "Initial Complaint Received",
+        description: "Anonymous complaint about unsafe scaffolding received via hotline",
+        eventDate: new Date(Date.now() - 10 * 86400000), // 10 days ago
+        position: 1,
+        eventType: "complaint",
+        relatedEntityId: null,
+        relatedEntityType: null,
+        importance: "high",
+        addedBy: 1
+      });
+      
+      await storage.createTimelineEvent({
+        investigationId: investigation.id,
+        title: "Initial Site Inspection",
+        description: "Officer conducted first site inspection and documented issues",
+        eventDate: new Date(Date.now() - 7 * 86400000), // 7 days ago
+        position: 2,
+        eventType: "inspection",
+        relatedEntityId: inspection1.id,
+        relatedEntityType: "inspection",
+        importance: "medium",
+        addedBy: 1
+      });
+      
+      // Create demo report and link it to the investigation
+      const report = await storage.createReport({
+        inspectionId: inspection1.id,
+        reportUrl: "/reports/INS-2023-0042-Report.pdf",
+        sentToEmail: "builder@example.com",
+        sentAt: new Date(Date.now() - 5 * 86400000) // 5 days ago
+      });
+      
+      await storage.createReportInvestigationLink({
+        reportId: report.id,
+        investigationId: investigation.id,
+        linkType: "evidence",
+        notes: "Initial inspection report documenting safety issues",
+        createdBy: 1
       });
     }
   };

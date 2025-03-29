@@ -41,7 +41,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Plus, Clock, AlertTriangle, CheckCircle, FileText, Check, X, Calendar, User } from "lucide-react";
+import { ArrowLeft, Plus, Clock, AlertTriangle, CheckCircle, FileText, Check, X, Calendar, User, Users, History, Link } from "lucide-react";
+import RelationshipManager from "@/components/RelationshipManager";
+import TimelineManager from "@/components/TimelineManager";
+import ReportLinkManager from "@/components/ReportLinkManager";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -438,10 +441,22 @@ export default function InvestigationDetails() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-3 mb-4">
+          <TabsList className="grid grid-cols-6 mb-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tracking">Tracking Notices</TabsTrigger>
             <TabsTrigger value="evidence">Elements of Proof</TabsTrigger>
+            <TabsTrigger value="timeline">
+              <History className="w-4 h-4 mr-1" />
+              Timeline
+            </TabsTrigger>
+            <TabsTrigger value="relationships">
+              <Users className="w-4 h-4 mr-1" />
+              Relationships
+            </TabsTrigger>
+            <TabsTrigger value="reports">
+              <FileText className="w-4 h-4 mr-1" />
+              Reports
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">
@@ -612,6 +627,18 @@ export default function InvestigationDetails() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+          
+          <TabsContent value="timeline" className="space-y-4">
+            <TimelineManager investigationId={id} />
+          </TabsContent>
+          
+          <TabsContent value="relationships" className="space-y-4">
+            <RelationshipManager investigationId={id} />
+          </TabsContent>
+          
+          <TabsContent value="reports" className="space-y-4">
+            <ReportLinkManager investigationId={id} />
           </TabsContent>
         </Tabs>
       </main>
