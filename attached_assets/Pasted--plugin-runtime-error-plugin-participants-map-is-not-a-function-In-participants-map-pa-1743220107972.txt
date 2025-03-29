@@ -1,0 +1,73 @@
+[plugin:runtime-error-plugin] participants.map is not a function. (In 'participants.map(
+        (participant) => /* @__PURE__ */ jsxDEV(TableRow, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:342:12", "data-component-name": "TableRow", children: [
+          /* @__PURE__ */ jsxDEV(TableCell, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:343:18", "data-component-name": "TableCell", className: "font-medium", children: /* @__PURE__ */ jsxDEV("div", { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:344:20", "data-component-name": "div", className: "flex items-center", children: [
+            /* @__PURE__ */ jsxDEV(UserIcon, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:345:22", "data-component-name": "UserIcon", className: "mr-2 h-4 w-4 text-muted-foreground" }, void 0, false, {
+              fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+              lineNumber: 345,
+              columnNumber: 23
+            }, this),
+            getUserName(participant.userId)
+          ] }, void 0, true, {
+            fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+            lineNumber: 344,
+            columnNumber: 21
+          }, this) }, void 0, false, {
+            fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+            lineNumber: 343,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV(TableCell, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:349:18", "data-component-name": "TableCell", children: /* @__PURE__ */ jsxDEV(Badge, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:350:20", "data-component-name": "Badge", variant: getRoleBadgeVariant(participant.role), children: participant.role }, void 0, false, {
+            fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+            lineNumber: 350,
+            columnNumber: 21
+          }, this) }, void 0, false, {
+            fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+            lineNumber: 349,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV(TableCell, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:354:18", "data-component-name": "TableCell", children: getUserName(participant.addedBy) }, void 0, false, {
+            fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+            lineNumber: 354,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV(TableCell, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:355:18", "data-component-name": "TableCell", children: new Date(participant.addedAt).toLocaleDateString() }, void 0, false, {
+            fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+            lineNumber: 355,
+            columnNumber: 19
+          }, this),
+          /* @__PURE__ */ jsxDEV(TableCell, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:358:18", "data-component-name": "TableCell", className: "text-right", children: /* @__PURE__ */ jsxDEV(
+            Button,
+            {
+              "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:359:20",
+              "data-component-name": "Button",
+              variant: "ghost",
+              size: "icon",
+              onClick: () => removeParticipantMutation.mutate(participant.id),
+              disabled: removeParticipantMutation.isPending,
+              children: /* @__PURE__ */ jsxDEV(UserXIcon, { "data-replit-metadata": "client/src/components/InvestigationParticipants.tsx:365:22", "data-component-name": "UserXIcon", className: "h-4 w-4 text-red-500" }, void 0, false, {
+                fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+                lineNumber: 365,
+                columnNumber: 23
+              }, this)
+            },
+            void 0,
+            false,
+            {
+              fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+              lineNumber: 359,
+              columnNumber: 21
+            },
+            this
+          ) }, void 0, false, {
+            fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+            lineNumber: 358,
+            columnNumber: 19
+          }, this)
+        ] }, participant.id, true, {
+          fileName: "/home/runner/workspace/client/src/components/InvestigationParticipants.tsx",
+          lineNumber: 342,
+          columnNumber: 13
+        }, this)
+      )', 'participants.map' is undefined)
+Click outside, press Esc key, or fix the code to dismiss.
+You can also disable this overlay by setting server.hmr.overlay to false in vite.config.js.

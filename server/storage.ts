@@ -18,7 +18,11 @@ import {
   type ElementOfProof, type InsertElementOfProof, elementsOfProof,
   type PersonRelationship, type InsertPersonRelationship, personRelationships,
   type TimelineEvent, type InsertTimelineEvent, timelineEvents,
-  type ReportInvestigationLink, type InsertReportInvestigationLink, reportInvestigationLinks
+  type ReportInvestigationLink, type InsertReportInvestigationLink, reportInvestigationLinks,
+  type Role, type InsertRole, roles,
+  type Permission, type InsertPermission, permissions,
+  type RolePermission, type InsertRolePermission, rolePermissions,
+  type InvestigationParticipant, type InsertInvestigationParticipant, investigationParticipants
 } from "@shared/schema";
 
 // Storage interface
@@ -155,6 +159,34 @@ export interface IStorage {
   getReportInvestigationLink(id: number): Promise<ReportInvestigationLink | undefined>;
   createReportInvestigationLink(link: InsertReportInvestigationLink): Promise<ReportInvestigationLink>;
   deleteReportInvestigationLink(id: number): Promise<boolean>;
+  
+  // Role methods
+  getRoles(): Promise<Role[]>;
+  getRole(id: number): Promise<Role | undefined>;
+  createRole(role: InsertRole): Promise<Role>;
+  updateRole(id: number, role: Partial<InsertRole>): Promise<Role | undefined>;
+  deleteRole(id: number): Promise<boolean>;
+  
+  // Permission methods
+  getPermissions(): Promise<Permission[]>;
+  createPermission(permission: InsertPermission): Promise<Permission>;
+  
+  // Role-Permission mapping methods
+  getRolePermissions(roleId: number): Promise<RolePermission[]>;
+  createRolePermission(rolePermission: InsertRolePermission): Promise<RolePermission>;
+  deleteRolePermission(roleId: number, permissionId: number): Promise<boolean>;
+  
+  // User methods (extended)
+  getUsers(): Promise<User[]>;
+  updateUser(id: number, user: Partial<User>): Promise<User | undefined>;
+  
+  // Investigation participants methods
+  getInvestigationParticipants(investigationId: number): Promise<InvestigationParticipant[]>;
+  getUserInvestigations(userId: number): Promise<Investigation[]>;
+  createInvestigationParticipant(participant: InsertInvestigationParticipant): Promise<InvestigationParticipant>;
+  getInvestigationParticipant(id: number): Promise<InvestigationParticipant | undefined>;
+  updateInvestigationParticipant(id: number, participant: Partial<InsertInvestigationParticipant>): Promise<InvestigationParticipant | undefined>;
+  deleteInvestigationParticipant(id: number): Promise<boolean>;
 }
 
 // In-memory storage implementation
@@ -179,6 +211,10 @@ export class MemStorage implements IStorage {
   private personRelationships: Map<number, PersonRelationship>;
   private timelineEvents: Map<number, TimelineEvent>;
   private reportInvestigationLinks: Map<number, ReportInvestigationLink>;
+  private roles: Map<number, Role>;
+  private permissions: Map<number, Permission>;
+  private rolePermissions: Map<string, RolePermission>; // Composite key: `${roleId}-${permissionId}`
+  private investigationParticipants: Map<number, InvestigationParticipant>;
   
   private userId: number;
   private inspectionId: number;
@@ -199,6 +235,9 @@ export class MemStorage implements IStorage {
   private personRelationshipId: number;
   private timelineEventId: number;
   private reportInvestigationLinkId: number;
+  private roleId: number;
+  private permissionId: number;
+  private investigationParticipantId: number;
   
   constructor() {
     this.users = new Map();
@@ -221,6 +260,10 @@ export class MemStorage implements IStorage {
     this.personRelationships = new Map();
     this.timelineEvents = new Map();
     this.reportInvestigationLinks = new Map();
+    this.roles = new Map();
+    this.permissions = new Map();
+    this.rolePermissions = new Map();
+    this.investigationParticipants = new Map();
     
     this.userId = 1;
     this.inspectionId = 1;
@@ -241,6 +284,9 @@ export class MemStorage implements IStorage {
     this.personRelationshipId = 1;
     this.timelineEventId = 1;
     this.reportInvestigationLinkId = 1;
+    this.roleId = 1;
+    this.permissionId = 1;
+    this.investigationParticipantId = 1;
     
     // Create default users
     this.createUser({
@@ -273,7 +319,14 @@ export class MemStorage implements IStorage {
   
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userId++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      roleId: null,
+      isActive: true,
+      lastLogin: null,
+      createdAt: new Date()
+    };
     this.users.set(id, user);
     return user;
   }
@@ -980,6 +1033,154 @@ export class MemStorage implements IStorage {
   
   async deleteReportInvestigationLink(id: number): Promise<boolean> {
     return this.reportInvestigationLinks.delete(id);
+  }
+
+  // Role methods
+  async getRoles(): Promise<Role[]> {
+    return Array.from(this.roles.values());
+  }
+
+  async getRole(id: number): Promise<Role | undefined> {
+    return this.roles.get(id);
+  }
+
+  async createRole(insertRole: InsertRole): Promise<Role> {
+    const id = this.roleId++;
+    const role: Role = {
+      ...insertRole,
+      id,
+      createdAt: new Date()
+    };
+    this.roles.set(id, role);
+    return role;
+  }
+
+  async updateRole(id: number, updateData: Partial<InsertRole>): Promise<Role | undefined> {
+    const role = this.roles.get(id);
+    if (!role) return undefined;
+    
+    const updatedRole: Role = {
+      ...role,
+      ...updateData,
+    };
+    this.roles.set(id, updatedRole);
+    return updatedRole;
+  }
+
+  async deleteRole(id: number): Promise<boolean> {
+    // Also delete role permissions
+    const rolePermissionsToDelete = Array.from(this.rolePermissions.entries())
+      .filter(([key]) => key.startsWith(`${id}-`))
+      .map(([key]) => key);
+    
+    for (const key of rolePermissionsToDelete) {
+      this.rolePermissions.delete(key);
+    }
+    
+    return this.roles.delete(id);
+  }
+
+  // Permission methods
+  async getPermissions(): Promise<Permission[]> {
+    return Array.from(this.permissions.values());
+  }
+
+  async createPermission(insertPermission: InsertPermission): Promise<Permission> {
+    const id = this.permissionId++;
+    const permission: Permission = {
+      ...insertPermission,
+      id,
+      createdAt: new Date()
+    };
+    this.permissions.set(id, permission);
+    return permission;
+  }
+
+  // Role-Permission mapping methods
+  async getRolePermissions(roleId: number): Promise<RolePermission[]> {
+    return Array.from(this.rolePermissions.values())
+      .filter(rp => rp.roleId === roleId);
+  }
+
+  async createRolePermission(insertRolePermission: InsertRolePermission): Promise<RolePermission> {
+    const key = `${insertRolePermission.roleId}-${insertRolePermission.permissionId}`;
+    const rolePermission: RolePermission = {
+      ...insertRolePermission,
+      createdAt: new Date()
+    };
+    this.rolePermissions.set(key, rolePermission);
+    return rolePermission;
+  }
+
+  async deleteRolePermission(roleId: number, permissionId: number): Promise<boolean> {
+    const key = `${roleId}-${permissionId}`;
+    return this.rolePermissions.delete(key);
+  }
+  
+  // User methods (extended)
+  async getUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+  
+  async updateUser(id: number, updateData: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updatedUser: User = {
+      ...user,
+      ...updateData
+    };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
+  // Investigation participants methods
+  async getInvestigationParticipants(investigationId: number): Promise<InvestigationParticipant[]> {
+    return Array.from(this.investigationParticipants.values())
+      .filter(participant => participant.investigationId === investigationId);
+  }
+
+  async getUserInvestigations(userId: number): Promise<Investigation[]> {
+    const participantInvestigationIds = Array.from(this.investigationParticipants.values())
+      .filter(participant => participant.userId === userId && participant.isActive)
+      .map(participant => participant.investigationId);
+    
+    return Array.from(this.investigations.values())
+      .filter(investigation => participantInvestigationIds.includes(investigation.id));
+  }
+
+  async createInvestigationParticipant(insertParticipant: InsertInvestigationParticipant): Promise<InvestigationParticipant> {
+    const id = this.investigationParticipantId++;
+    const participant: InvestigationParticipant = {
+      ...insertParticipant,
+      id,
+      addedAt: new Date(),
+      updatedAt: null,
+      isActive: true
+    };
+    this.investigationParticipants.set(id, participant);
+    return participant;
+  }
+
+  async getInvestigationParticipant(id: number): Promise<InvestigationParticipant | undefined> {
+    return this.investigationParticipants.get(id);
+  }
+
+  async updateInvestigationParticipant(id: number, updateData: Partial<InsertInvestigationParticipant>): Promise<InvestigationParticipant | undefined> {
+    const participant = this.investigationParticipants.get(id);
+    if (!participant) return undefined;
+    
+    const updatedParticipant: InvestigationParticipant = {
+      ...participant,
+      ...updateData,
+      updatedAt: new Date()
+    };
+    this.investigationParticipants.set(id, updatedParticipant);
+    return updatedParticipant;
+  }
+
+  async deleteInvestigationParticipant(id: number): Promise<boolean> {
+    return this.investigationParticipants.delete(id);
   }
 }
 
