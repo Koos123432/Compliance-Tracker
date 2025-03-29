@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 const InCarModeLayout = () => {
   const [audioEnabled, setAudioEnabled] = useState(true);
   const { toast } = useToast();
-  const { connectionState, sendMessage } = useWebSocketContext();
+  const { connectionState, sendMessage, lastMessage } = useWebSocketContext();
 
   // Fetch active jobs for the current user (hardcoded to 1 for demo)
   const { data: activeJobs = [], refetch: refetchJobs } = useQuery({
@@ -125,31 +125,31 @@ const InCarModeLayout = () => {
       // Subscribe to assignments channel
       sendMessage({
         type: 'subscribe',
-        channel: 'assignments',
-        userId: 1 // Hardcoded user ID for demo
+        entity: 'assignments',
+        entityId: 1 // Hardcoded user ID for demo
       });
       
-      // Play sound when a new assignment arrives
-      const handleMessage = (message: any) => {
-        if (message && message.type === 'assignment' && message.action === 'new') {
-          playSoundAlert(message.data?.priority || 'medium');
+      // Set up a message handler to listen for the last message from WebSocket
+      const handleNewAssignment = () => {
+        if (lastMessage && lastMessage.type === 'assignment' && lastMessage.action === 'new') {
+          playSoundAlert(lastMessage.data?.priority || 'medium');
           refetchJobs();
         }
       };
       
-      // Add event listener for messages
-      window.addEventListener('message', handleMessage);
+      // Call the handler when lastMessage changes
+      handleNewAssignment();
       
       return () => {
-        // Unsubscribe and remove the listener when component unmounts
+        // Unsubscribe when component unmounts
         sendMessage({
           type: 'unsubscribe',
-          channel: 'assignments'
+          entity: 'assignments',
+          entityId: 1
         });
-        window.removeEventListener('message', handleMessage);
       };
     }
-  }, [connectionState, sendMessage, refetchJobs]);
+  }, [connectionState, sendMessage, lastMessage, refetchJobs]);
   
   // Handler to mark job complete
   const handleJobComplete = async (jobId: number) => {
