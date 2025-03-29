@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, Link } from 'wouter';
+import { useLocation } from 'wouter';
 import { Menu, RefreshCw, User, LogOut, Settings, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,19 +12,14 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from '@/hooks/use-toast';
 import WebSocketIndicator from '@/components/WebSocketIndicator';
 
-interface HeaderProps {
-  username?: string;
-  onMenuToggle?: () => void;
-}
-
-export default function Header({ username = "J. Smith", onMenuToggle }: HeaderProps) {
+export default function Header({ username = "J. Smith", onMenuToggle }) {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const [syncing, setSyncing] = useState(false);
-  
+
   const handleSync = () => {
     setSyncing(true);
-    
+
     // Simulate sync operation
     setTimeout(() => {
       setSyncing(false);
