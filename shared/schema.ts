@@ -105,6 +105,13 @@ export const investigations = pgTable("investigations", {
   priority: text("priority").notNull(),
   assignedOfficerId: integer("assigned_officer_id"),
   createdAt: timestamp("created_at").notNull(),
+  // Added fields for legislation details
+  offence: text("offence"),
+  legislation: text("legislation"),
+  legislationSection: text("legislation_section"),
+  lawCode: text("law_code"),
+  penalty: text("penalty"),
+  offenceCategory: text("offence_category"),
 });
 
 export const insertInvestigationSchema = createInsertSchema(investigations).omit({

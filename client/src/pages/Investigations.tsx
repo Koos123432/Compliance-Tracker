@@ -45,6 +45,13 @@ const investigationFormSchema = z.object({
   status: z.string().min(1, "Status is required"),
   priority: z.string().min(1, "Priority is required"),
   assignedOfficerId: z.number().default(1), // Default to first user for demo
+  // Legislation information
+  offence: z.string().optional(),
+  legislation: z.string().optional(),
+  legislationSection: z.string().optional(),
+  lawCode: z.string().optional(),
+  penalty: z.string().optional(),
+  offenceCategory: z.string().optional(),
 });
 
 type InvestigationFormValues = z.infer<typeof investigationFormSchema>;
@@ -70,6 +77,13 @@ export default function Investigations() {
       status: "open",
       priority: "medium",
       assignedOfficerId: 1,
+      // Default values for the new fields
+      offence: "",
+      legislation: "",
+      legislationSection: "",
+      lawCode: "",
+      penalty: "",
+      offenceCategory: "",
     },
   });
   
@@ -313,6 +327,94 @@ export default function Investigations() {
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={form.control}
+                name="offence"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Offence</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Describe the offence being investigated" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="legislation"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Legislation</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Environmental Protection Act" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="legislationSection"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Section</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Section 45(2)" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="lawCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Law Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Legal reference code" {...field} value={field.value || ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="offenceCategory"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Category</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select category" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="environmental">Environmental</SelectItem>
+                          <SelectItem value="planning">Planning</SelectItem>
+                          <SelectItem value="safety">Safety</SelectItem>
+                          <SelectItem value="building">Building</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField

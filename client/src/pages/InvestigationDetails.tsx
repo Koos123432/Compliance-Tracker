@@ -359,6 +359,58 @@ export default function InvestigationDetails() {
                 <p className="text-sm font-medium text-gray-500">Description</p>
                 <p className="text-sm">{investigation.description}</p>
               </div>
+              
+              {investigation.offence && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-500">Offence</p>
+                    <p className="text-sm">{investigation.offence}</p>
+                  </div>
+                </>
+              )}
+              
+              {(investigation.legislation || investigation.legislationSection || investigation.lawCode) && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {investigation.legislation && (
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-500">Legislation</p>
+                        <p className="text-sm">{investigation.legislation}</p>
+                      </div>
+                    )}
+                    {investigation.legislationSection && (
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-500">Section</p>
+                        <p className="text-sm">{investigation.legislationSection}</p>
+                      </div>
+                    )}
+                    {investigation.lawCode && (
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-500">Law Code</p>
+                        <p className="text-sm">{investigation.lawCode}</p>
+                      </div>
+                    )}
+                    {investigation.offenceCategory && (
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium text-gray-500">Category</p>
+                        <p className="text-sm capitalize">{investigation.offenceCategory}</p>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+              
+              {investigation.penalty && (
+                <>
+                  <Separator className="my-4" />
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium text-gray-500">Penalty</p>
+                    <p className="text-sm">{investigation.penalty}</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
           
