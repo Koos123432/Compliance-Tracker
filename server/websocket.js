@@ -1,9 +1,10 @@
 
-import { WebSocketServer } from 'ws';
+import WebSocket, { WebSocketServer } from 'ws';
 
 // Client tracking
 const clients = new Map();
 
+// WebSocket server setup
 export function setupWebSocketServer(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
   
@@ -14,7 +15,7 @@ export function setupWebSocketServer(server) {
     
     // Initialize client data
     const client = {
-      userId: 0, // Will be set after authentication
+      userId: 0,
       socket,
       subscriptions: new Set()
     };
@@ -45,7 +46,7 @@ export function setupWebSocketServer(server) {
       clients.delete(socket);
     });
     
-    // Send a welcome message
+    // Send welcome message
     socket.send(JSON.stringify({
       type: 'info',
       message: 'Connected to compliance management system'
@@ -55,7 +56,7 @@ export function setupWebSocketServer(server) {
   return wss;
 }
 
-// Handle messages from clients 
+// Handle messages from clients
 function handleClientMessage(client, message) {
   switch (message.type) {
     case 'authenticate':
@@ -71,7 +72,6 @@ function handleClientMessage(client, message) {
       break;
       
     case 'status':
-      // Send back the client's current subscriptions
       client.socket.send(JSON.stringify({
         type: 'status',
         userId: client.userId,

@@ -1,6 +1,5 @@
 
 import express from "express";
-import { createServer } from "http";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
 import { setupWebSocketServer } from "./websocket.js";
@@ -15,7 +14,7 @@ app.use((req, res, next) => {
   let capturedJsonResponse = undefined;
 
   const originalResJson = res.json;
-  res.json = function(bodyJson, ...args) {
+  res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
     return originalResJson.apply(res, [bodyJson, ...args]);
   };
@@ -42,7 +41,6 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
   
-  // Set up the WebSocket server
   setupWebSocketServer(server);
   
   app.use((err, _req, res, _next) => {
