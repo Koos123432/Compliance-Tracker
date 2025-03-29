@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -186,5 +186,100 @@ export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Activity = typeof activities.$inferSelect;
 export type InsertActivity = z.infer<typeof insertActivitySchema>;
 
+// Notifications for dispatch and job alerts
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // 'dispatch', 'schedule', 'alert', etc.
+  entityId: integer("entity_id"),
+  entityType: text("entity_type"),
+  isRead: boolean("is_read").notNull().default(false),
+  priority: text("priority").notNull().default("normal"), // 'low', 'normal', 'high', 'urgent'
+  createdAt: timestamp("created_at").notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Teams for officer grouping
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").notNull(),
+});
+
+export const insertTeamSchema = createInsertSchema(teams).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Team members (many-to-many)
+export const teamMembers = pgTable("team_members", {
+  teamId: integer("team_id").notNull(),
+  userId: integer("user_id").notNull(),
+  isTeamLead: boolean("is_team_lead").notNull().default(false),
+  joinedAt: timestamp("joined_at").notNull(),
+}, (t) => ({
+  pk: primaryKey(t.teamId, t.userId),
+}));
+
+export const insertTeamMemberSchema = createInsertSchema(teamMembers).omit({
+  joinedAt: true,
+});
+
+// Team schedule (shared schedules)
+export const teamSchedules = pgTable("team_schedules", {
+  id: serial("id").primaryKey(),
+  teamId: integer("team_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  scheduledDate: timestamp("scheduled_date").notNull(),
+  status: text("status").notNull(),
+  createdAt: timestamp("created_at").notNull(),
+  createdBy: integer("created_by").notNull(),
+});
+
+export const insertTeamScheduleSchema = createInsertSchema(teamSchedules).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Team schedule assignments
+export const teamScheduleAssignments = pgTable("team_schedule_assignments", {
+  id: serial("id").primaryKey(),
+  teamScheduleId: integer("team_schedule_id").notNull(),
+  userId: integer("user_id").notNull(),
+  assignmentStatus: text("assignment_status").notNull().default("pending"), // pending, accepted, rejected
+  assignedAt: timestamp("assigned_at").notNull(),
+  updatedAt: timestamp("updated_at"),
+  notes: text("notes"),
+});
+
+export const insertTeamScheduleAssignmentSchema = createInsertSchema(teamScheduleAssignments).omit({
+  id: true,
+  assignedAt: true,
+  updatedAt: true,
+});
+
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = z.infer<typeof insertScheduleSchema>;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export type Team = typeof teams.$inferSelect;
+export type InsertTeam = z.infer<typeof insertTeamSchema>;
+
+export type TeamMember = typeof teamMembers.$inferSelect;
+export type InsertTeamMember = z.infer<typeof insertTeamMemberSchema>;
+
+export type TeamSchedule = typeof teamSchedules.$inferSelect;
+export type InsertTeamSchedule = z.infer<typeof insertTeamScheduleSchema>;
+
+export type TeamScheduleAssignment = typeof teamScheduleAssignments.$inferSelect;
+export type InsertTeamScheduleAssignment = z.infer<typeof insertTeamScheduleAssignmentSchema>;

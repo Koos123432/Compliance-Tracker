@@ -9,7 +9,12 @@ import {
   insertInvestigationSchema, 
   insertReportSchema, 
   insertActivitySchema, 
-  insertScheduleSchema 
+  insertScheduleSchema,
+  insertNotificationSchema,
+  insertTeamSchema,
+  insertTeamMemberSchema,
+  insertTeamScheduleSchema,
+  insertTeamScheduleAssignmentSchema
 } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -354,6 +359,300 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Notification routes
+  app.get("/api/users/:userId/notifications", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const notifications = await storage.getNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch notifications" });
+    }
+  });
+
+  app.get("/api/users/:userId/notifications/unread", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const notifications = await storage.getUnreadNotifications(userId);
+      res.json(notifications);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch unread notifications" });
+    }
+  });
+
+  app.post("/api/notifications", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertNotificationSchema.parse(req.body);
+      const notification = await storage.createNotification(validatedData);
+      res.status(201).json(notification);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid notification data", error });
+    }
+  });
+
+  app.patch("/api/notifications/:id/read", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const notification = await storage.getNotification(id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      const updatedNotification = await storage.markNotificationAsRead(id);
+      res.json(updatedNotification);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to mark notification as read", error });
+    }
+  });
+
+  app.delete("/api/notifications/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const notification = await storage.getNotification(id);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+      
+      await storage.deleteNotification(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
+  // Team routes
+  app.get("/api/teams", async (req: Request, res: Response) => {
+    try {
+      const teams = await storage.getTeams();
+      res.json(teams);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch teams" });
+    }
+  });
+
+  app.get("/api/teams/:id", async (req: Request, res: Response) => {
+    try {
+      const team = await storage.getTeam(Number(req.params.id));
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      res.json(team);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team" });
+    }
+  });
+
+  app.post("/api/teams", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertTeamSchema.parse(req.body);
+      const team = await storage.createTeam(validatedData);
+      res.status(201).json(team);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid team data", error });
+    }
+  });
+
+  app.patch("/api/teams/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const team = await storage.getTeam(id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      const updatedTeam = await storage.updateTeam(id, req.body);
+      res.json(updatedTeam);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update team", error });
+    }
+  });
+
+  app.delete("/api/teams/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const team = await storage.getTeam(id);
+      if (!team) {
+        return res.status(404).json({ message: "Team not found" });
+      }
+      
+      await storage.deleteTeam(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete team" });
+    }
+  });
+
+  // Team members routes
+  app.get("/api/teams/:teamId/members", async (req: Request, res: Response) => {
+    try {
+      const teamId = Number(req.params.teamId);
+      const members = await storage.getTeamMembers(teamId);
+      res.json(members);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team members" });
+    }
+  });
+
+  app.get("/api/users/:userId/teams", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const teams = await storage.getUserTeams(userId);
+      res.json(teams);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user teams" });
+    }
+  });
+
+  app.post("/api/teams/:teamId/members", async (req: Request, res: Response) => {
+    try {
+      const teamId = Number(req.params.teamId);
+      const userId = Number(req.body.userId);
+      const isTeamLead = req.body.isTeamLead || false;
+      
+      const validatedData = insertTeamMemberSchema.parse({
+        teamId,
+        userId,
+        isTeamLead
+      });
+      
+      const member = await storage.addTeamMember(validatedData);
+      res.status(201).json(member);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid team member data", error });
+    }
+  });
+
+  app.delete("/api/teams/:teamId/members/:userId", async (req: Request, res: Response) => {
+    try {
+      const teamId = Number(req.params.teamId);
+      const userId = Number(req.params.userId);
+      
+      await storage.removeTeamMember(teamId, userId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove team member" });
+    }
+  });
+
+  app.patch("/api/teams/:teamId/members/:userId", async (req: Request, res: Response) => {
+    try {
+      const teamId = Number(req.params.teamId);
+      const userId = Number(req.params.userId);
+      const isTeamLead = req.body.isTeamLead || false;
+      
+      const updatedMember = await storage.updateTeamMember(teamId, userId, isTeamLead);
+      if (!updatedMember) {
+        return res.status(404).json({ message: "Team member not found" });
+      }
+      
+      res.json(updatedMember);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update team member", error });
+    }
+  });
+
+  // Team Schedules routes
+  app.get("/api/teams/:teamId/schedules", async (req: Request, res: Response) => {
+    try {
+      const teamId = Number(req.params.teamId);
+      const schedules = await storage.getTeamSchedules(teamId);
+      res.json(schedules);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch team schedules" });
+    }
+  });
+
+  app.post("/api/teams/:teamId/schedules", async (req: Request, res: Response) => {
+    try {
+      const teamId = Number(req.params.teamId);
+      const data = {
+        ...req.body,
+        teamId
+      };
+      
+      const validatedData = insertTeamScheduleSchema.parse(data);
+      const schedule = await storage.createTeamSchedule(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.createdBy,
+        activityType: "create_team_schedule",
+        description: `Team schedule "${validatedData.title}" created`,
+        entityId: schedule.id,
+        entityType: "teamSchedule"
+      });
+      
+      res.status(201).json(schedule);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid team schedule data", error });
+    }
+  });
+
+  app.get("/api/teamSchedules/:id/assignments", async (req: Request, res: Response) => {
+    try {
+      const scheduleId = Number(req.params.id);
+      const assignments = await storage.getTeamScheduleAssignments(scheduleId);
+      res.json(assignments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch assignments" });
+    }
+  });
+
+  app.get("/api/users/:userId/assignments", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const assignments = await storage.getUserAssignments(userId);
+      res.json(assignments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user assignments" });
+    }
+  });
+
+  app.post("/api/teamSchedules/:id/assignments", async (req: Request, res: Response) => {
+    try {
+      const teamScheduleId = Number(req.params.id);
+      const data = {
+        ...req.body,
+        teamScheduleId,
+        assignmentStatus: req.body.assignmentStatus || "pending"
+      };
+      
+      const validatedData = insertTeamScheduleAssignmentSchema.parse(data);
+      const assignment = await storage.assignTeamSchedule(validatedData);
+      
+      // Create notification for the assigned user
+      await storage.createNotification({
+        userId: validatedData.userId,
+        title: "New Schedule Assignment",
+        message: "You have been assigned a new inspection schedule",
+        type: "schedule",
+        entityId: teamScheduleId,
+        entityType: "teamSchedule",
+        priority: "high"
+      });
+      
+      res.status(201).json(assignment);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid assignment data", error });
+    }
+  });
+
+  app.patch("/api/assignments/:id/status", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const { status, notes } = req.body;
+      
+      const assignment = await storage.updateAssignmentStatus(id, status, notes);
+      if (!assignment) {
+        return res.status(404).json({ message: "Assignment not found" });
+      }
+      
+      res.json(assignment);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update assignment status", error });
+    }
+  });
+
   // Initialize some demo data
   const demoData = async () => {
     // Check if we already have inspections
@@ -418,6 +717,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
       description: "Report sent to builder for INS-2023-0035",
       entityId: 1,
       entityType: "report"
+    });
+    
+    // Create a demo team
+    const team = await storage.createTeam({
+      name: "North Sydney Compliance Team",
+      description: "Team responsible for compliance in North Sydney area"
+    });
+    
+    // Add team members
+    await storage.addTeamMember({
+      teamId: team.id,
+      userId: 1,
+      isTeamLead: true
+    });
+    
+    await storage.addTeamMember({
+      teamId: team.id,
+      userId: 2,
+      isTeamLead: false
+    });
+    
+    // Create team schedule
+    const teamSchedule = await storage.createTeamSchedule({
+      teamId: team.id,
+      title: "Weekly Site Inspections",
+      description: "Regular inspections for North Sydney area",
+      scheduledDate: new Date(Date.now() + 86400000), // Tomorrow
+      status: "scheduled",
+      createdBy: 1
+    });
+    
+    // Assign schedule to members
+    await storage.assignTeamSchedule({
+      teamScheduleId: teamSchedule.id,
+      userId: 1,
+      assignmentStatus: "accepted"
+    });
+    
+    await storage.assignTeamSchedule({
+      teamScheduleId: teamSchedule.id,
+      userId: 2,
+      assignmentStatus: "pending"
+    });
+    
+    // Create notifications
+    await storage.createNotification({
+      userId: 1,
+      title: "New Inspection Required",
+      message: "Urgent inspection needed at 123 Main St due to safety concerns",
+      type: "dispatch",
+      priority: "high",
+      isRead: false
+    });
+    
+    await storage.createNotification({
+      userId: 2,
+      title: "Schedule Assignment",
+      message: "You've been assigned to the North Sydney area inspection schedule",
+      type: "schedule",
+      entityId: teamSchedule.id,
+      entityType: "teamSchedule",
+      priority: "medium",
+      isRead: false
     });
   };
   

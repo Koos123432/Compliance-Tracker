@@ -7,7 +7,12 @@ import {
   type Investigation, type InsertInvestigation, investigations,
   type Report, type InsertReport, reports,
   type Activity, type InsertActivity, activities,
-  type Schedule, type InsertSchedule, schedules
+  type Schedule, type InsertSchedule, schedules,
+  type Notification, type InsertNotification, notifications,
+  type Team, type InsertTeam, teams,
+  type TeamMember, type InsertTeamMember, teamMembers,
+  type TeamSchedule, type InsertTeamSchedule, teamSchedules,
+  type TeamScheduleAssignment, type InsertTeamScheduleAssignment, teamScheduleAssignments
 } from "@shared/schema";
 
 // Storage interface
@@ -66,6 +71,42 @@ export interface IStorage {
   createSchedule(schedule: InsertSchedule): Promise<Schedule>;
   updateSchedule(id: number, schedule: Partial<InsertSchedule>): Promise<Schedule | undefined>;
   deleteSchedule(id: number): Promise<boolean>;
+  
+  // Notification methods
+  getNotifications(userId: number): Promise<Notification[]>;
+  getUnreadNotifications(userId: number): Promise<Notification[]>;
+  getNotification(id: number): Promise<Notification | undefined>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification | undefined>;
+  deleteNotification(id: number): Promise<boolean>;
+  
+  // Team methods
+  getTeams(): Promise<Team[]>;
+  getTeam(id: number): Promise<Team | undefined>;
+  createTeam(team: InsertTeam): Promise<Team>;
+  updateTeam(id: number, team: Partial<InsertTeam>): Promise<Team | undefined>;
+  deleteTeam(id: number): Promise<boolean>;
+  
+  // Team Member methods
+  getTeamMembers(teamId: number): Promise<TeamMember[]>;
+  getUserTeams(userId: number): Promise<Team[]>;
+  addTeamMember(teamMember: InsertTeamMember): Promise<TeamMember>;
+  removeTeamMember(teamId: number, userId: number): Promise<boolean>;
+  updateTeamMember(teamId: number, userId: number, isTeamLead: boolean): Promise<TeamMember | undefined>;
+  
+  // Team Schedule methods
+  getTeamSchedules(teamId: number): Promise<TeamSchedule[]>;
+  getTeamSchedule(id: number): Promise<TeamSchedule | undefined>;
+  createTeamSchedule(teamSchedule: InsertTeamSchedule): Promise<TeamSchedule>;
+  updateTeamSchedule(id: number, teamSchedule: Partial<InsertTeamSchedule>): Promise<TeamSchedule | undefined>;
+  deleteTeamSchedule(id: number): Promise<boolean>;
+  
+  // Team Schedule Assignment methods
+  getTeamScheduleAssignments(teamScheduleId: number): Promise<TeamScheduleAssignment[]>;
+  getUserAssignments(userId: number): Promise<TeamScheduleAssignment[]>;
+  assignTeamSchedule(assignment: InsertTeamScheduleAssignment): Promise<TeamScheduleAssignment>;
+  updateAssignmentStatus(id: number, status: string, notes?: string): Promise<TeamScheduleAssignment | undefined>;
+  deleteAssignment(id: number): Promise<boolean>;
 }
 
 // In-memory storage implementation
@@ -79,6 +120,11 @@ export class MemStorage implements IStorage {
   private reports: Map<number, Report>;
   private activities: Map<number, Activity>;
   private schedules: Map<number, Schedule>;
+  private notifications: Map<number, Notification>;
+  private teams: Map<number, Team>;
+  private teamMembers: Map<string, TeamMember>; // Composite key: `${teamId}-${userId}`
+  private teamSchedules: Map<number, TeamSchedule>;
+  private teamScheduleAssignments: Map<number, TeamScheduleAssignment>;
   
   private userId: number;
   private inspectionId: number;
@@ -89,6 +135,10 @@ export class MemStorage implements IStorage {
   private reportId: number;
   private activityId: number;
   private scheduleId: number;
+  private notificationId: number;
+  private teamId: number;
+  private teamScheduleId: number;
+  private teamScheduleAssignmentId: number;
   
   constructor() {
     this.users = new Map();
@@ -100,6 +150,11 @@ export class MemStorage implements IStorage {
     this.reports = new Map();
     this.activities = new Map();
     this.schedules = new Map();
+    this.notifications = new Map();
+    this.teams = new Map();
+    this.teamMembers = new Map();
+    this.teamSchedules = new Map();
+    this.teamScheduleAssignments = new Map();
     
     this.userId = 1;
     this.inspectionId = 1;
@@ -110,14 +165,26 @@ export class MemStorage implements IStorage {
     this.reportId = 1;
     this.activityId = 1;
     this.scheduleId = 1;
+    this.notificationId = 1;
+    this.teamId = 1;
+    this.teamScheduleId = 1;
+    this.teamScheduleAssignmentId = 1;
     
-    // Create default user
+    // Create default users
     this.createUser({
       username: "officer1",
       password: "password123",
       fullName: "John Smith",
       email: "jsmith@example.com",
       phoneNumber: "0412345678"
+    });
+    
+    this.createUser({
+      username: "officer2",
+      password: "password123",
+      fullName: "Jane Doe",
+      email: "jdoe@example.com",
+      phoneNumber: "0411222333"
     });
   }
   
@@ -374,6 +441,242 @@ export class MemStorage implements IStorage {
   
   async deleteSchedule(id: number): Promise<boolean> {
     return this.schedules.delete(id);
+  }
+
+  // Notification methods
+  async getNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getUnreadNotifications(userId: number): Promise<Notification[]> {
+    return Array.from(this.notifications.values())
+      .filter(notification => notification.userId === userId && !notification.isRead)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getNotification(id: number): Promise<Notification | undefined> {
+    return this.notifications.get(id);
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const id = this.notificationId++;
+    const notification: Notification = {
+      ...insertNotification,
+      id,
+      createdAt: new Date()
+    };
+    this.notifications.set(id, notification);
+    return notification;
+  }
+
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const notification = this.notifications.get(id);
+    if (!notification) return undefined;
+
+    const updatedNotification: Notification = {
+      ...notification,
+      isRead: true
+    };
+    this.notifications.set(id, updatedNotification);
+    return updatedNotification;
+  }
+
+  async deleteNotification(id: number): Promise<boolean> {
+    return this.notifications.delete(id);
+  }
+
+  // Team methods
+  async getTeams(): Promise<Team[]> {
+    return Array.from(this.teams.values());
+  }
+
+  async getTeam(id: number): Promise<Team | undefined> {
+    return this.teams.get(id);
+  }
+
+  async createTeam(insertTeam: InsertTeam): Promise<Team> {
+    const id = this.teamId++;
+    const team: Team = {
+      ...insertTeam,
+      id,
+      createdAt: new Date()
+    };
+    this.teams.set(id, team);
+    return team;
+  }
+
+  async updateTeam(id: number, updateData: Partial<InsertTeam>): Promise<Team | undefined> {
+    const team = this.teams.get(id);
+    if (!team) return undefined;
+
+    const updatedTeam: Team = {
+      ...team,
+      ...updateData
+    };
+    this.teams.set(id, updatedTeam);
+    return updatedTeam;
+  }
+
+  async deleteTeam(id: number): Promise<boolean> {
+    // Also delete team members
+    const membersToDelete = Array.from(this.teamMembers.entries())
+      .filter(([key]) => key.startsWith(`${id}-`));
+    
+    for (const [key] of membersToDelete) {
+      this.teamMembers.delete(key);
+    }
+    
+    // Also delete team schedules
+    const teamSchedulesToDelete = Array.from(this.teamSchedules.values())
+      .filter(schedule => schedule.teamId === id)
+      .map(schedule => schedule.id);
+    
+    for (const scheduleId of teamSchedulesToDelete) {
+      this.teamSchedules.delete(scheduleId);
+      
+      // Delete assignments for this schedule
+      const assignmentsToDelete = Array.from(this.teamScheduleAssignments.values())
+        .filter(assignment => assignment.teamScheduleId === scheduleId)
+        .map(assignment => assignment.id);
+      
+      for (const assignmentId of assignmentsToDelete) {
+        this.teamScheduleAssignments.delete(assignmentId);
+      }
+    }
+    
+    return this.teams.delete(id);
+  }
+
+  // Team Member methods
+  async getTeamMembers(teamId: number): Promise<TeamMember[]> {
+    return Array.from(this.teamMembers.values())
+      .filter(member => member.teamId === teamId);
+  }
+
+  async getUserTeams(userId: number): Promise<Team[]> {
+    const teamIds = Array.from(this.teamMembers.values())
+      .filter(member => member.userId === userId)
+      .map(member => member.teamId);
+    
+    return Array.from(this.teams.values())
+      .filter(team => teamIds.includes(team.id));
+  }
+
+  async addTeamMember(teamMember: InsertTeamMember): Promise<TeamMember> {
+    const key = `${teamMember.teamId}-${teamMember.userId}`;
+    const member: TeamMember = {
+      ...teamMember,
+      joinedAt: new Date()
+    };
+    this.teamMembers.set(key, member);
+    return member;
+  }
+
+  async removeTeamMember(teamId: number, userId: number): Promise<boolean> {
+    const key = `${teamId}-${userId}`;
+    return this.teamMembers.delete(key);
+  }
+
+  async updateTeamMember(teamId: number, userId: number, isTeamLead: boolean): Promise<TeamMember | undefined> {
+    const key = `${teamId}-${userId}`;
+    const member = this.teamMembers.get(key);
+    if (!member) return undefined;
+
+    const updatedMember: TeamMember = {
+      ...member,
+      isTeamLead
+    };
+    this.teamMembers.set(key, updatedMember);
+    return updatedMember;
+  }
+
+  // Team Schedule methods
+  async getTeamSchedules(teamId: number): Promise<TeamSchedule[]> {
+    return Array.from(this.teamSchedules.values())
+      .filter(schedule => schedule.teamId === teamId);
+  }
+
+  async getTeamSchedule(id: number): Promise<TeamSchedule | undefined> {
+    return this.teamSchedules.get(id);
+  }
+
+  async createTeamSchedule(insertTeamSchedule: InsertTeamSchedule): Promise<TeamSchedule> {
+    const id = this.teamScheduleId++;
+    const teamSchedule: TeamSchedule = {
+      ...insertTeamSchedule,
+      id,
+      createdAt: new Date()
+    };
+    this.teamSchedules.set(id, teamSchedule);
+    return teamSchedule;
+  }
+
+  async updateTeamSchedule(id: number, updateData: Partial<InsertTeamSchedule>): Promise<TeamSchedule | undefined> {
+    const schedule = this.teamSchedules.get(id);
+    if (!schedule) return undefined;
+
+    const updatedSchedule: TeamSchedule = {
+      ...schedule,
+      ...updateData
+    };
+    this.teamSchedules.set(id, updatedSchedule);
+    return updatedSchedule;
+  }
+
+  async deleteTeamSchedule(id: number): Promise<boolean> {
+    // Also delete assignments for this schedule
+    const assignmentsToDelete = Array.from(this.teamScheduleAssignments.values())
+      .filter(assignment => assignment.teamScheduleId === id)
+      .map(assignment => assignment.id);
+    
+    for (const assignmentId of assignmentsToDelete) {
+      this.teamScheduleAssignments.delete(assignmentId);
+    }
+    
+    return this.teamSchedules.delete(id);
+  }
+
+  // Team Schedule Assignment methods
+  async getTeamScheduleAssignments(teamScheduleId: number): Promise<TeamScheduleAssignment[]> {
+    return Array.from(this.teamScheduleAssignments.values())
+      .filter(assignment => assignment.teamScheduleId === teamScheduleId);
+  }
+
+  async getUserAssignments(userId: number): Promise<TeamScheduleAssignment[]> {
+    return Array.from(this.teamScheduleAssignments.values())
+      .filter(assignment => assignment.userId === userId);
+  }
+
+  async assignTeamSchedule(insertAssignment: InsertTeamScheduleAssignment): Promise<TeamScheduleAssignment> {
+    const id = this.teamScheduleAssignmentId++;
+    const assignment: TeamScheduleAssignment = {
+      ...insertAssignment,
+      id,
+      assignedAt: new Date(),
+      updatedAt: null
+    };
+    this.teamScheduleAssignments.set(id, assignment);
+    return assignment;
+  }
+
+  async updateAssignmentStatus(id: number, status: string, notes?: string): Promise<TeamScheduleAssignment | undefined> {
+    const assignment = this.teamScheduleAssignments.get(id);
+    if (!assignment) return undefined;
+
+    const updatedAssignment: TeamScheduleAssignment = {
+      ...assignment,
+      assignmentStatus: status,
+      notes: notes || assignment.notes,
+      updatedAt: new Date()
+    };
+    this.teamScheduleAssignments.set(id, updatedAssignment);
+    return updatedAssignment;
+  }
+
+  async deleteAssignment(id: number): Promise<boolean> {
+    return this.teamScheduleAssignments.delete(id);
   }
 }
 

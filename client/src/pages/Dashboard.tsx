@@ -11,6 +11,8 @@ import StatusBar from '@/components/StatusBar';
 import InspectionCard from '@/components/InspectionCard';
 import QuickActions from '@/components/QuickActions';
 import ActivityFeed from '@/components/ActivityFeed';
+import NotificationPanel from '@/components/NotificationPanel';
+import TeamSchedulePanel from '@/components/TeamSchedulePanel';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -47,6 +49,12 @@ export default function Dashboard() {
       
       <main className="flex-1 container mx-auto p-4 pb-20 md:pb-4">
         <StatusBar />
+        
+        {/* Notification Panel */}
+        <NotificationPanel />
+        
+        {/* Team Schedule Panel */}
+        <TeamSchedulePanel />
         
         <Card className="mb-4">
           <CardHeader className="px-4 py-3 border-b border-gray-200 flex flex-row justify-between items-center">
