@@ -12,6 +12,7 @@ import Schedule from "@/pages/Schedule";
 import Reports from "@/pages/Reports";
 import Investigations from "@/pages/Investigations";
 import InvestigationDetails from "@/pages/InvestigationDetails";
+import Organization from "@/pages/Organization";
 
 function Router() {
   return (
@@ -26,6 +27,7 @@ function Router() {
       <Route path="/reports" component={Reports} />
       <Route path="/investigations" component={Investigations} />
       <Route path="/investigations/:id" component={InvestigationDetails} />
+      <Route path="/organization" component={Organization} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

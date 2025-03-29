@@ -32,7 +32,9 @@ import {
   insertBurdenOfProofSchema,
   insertProofSchema,
   insertBriefSectionSchema,
-  insertBriefSchema
+  insertBriefSchema,
+  insertDepartmentSchema,
+  insertAccessLevelSchema
 } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -2051,6 +2053,178 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete brief" });
+    }
+  });
+
+  // Department routes
+  app.get("/api/departments", async (req: Request, res: Response) => {
+    try {
+      const departments = await storage.getDepartments();
+      res.json(departments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch departments" });
+    }
+  });
+
+  app.get("/api/departments/:id", async (req: Request, res: Response) => {
+    try {
+      const department = await storage.getDepartment(Number(req.params.id));
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      res.json(department);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch department" });
+    }
+  });
+
+  app.post("/api/departments", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertDepartmentSchema.parse(req.body);
+      const department = await storage.createDepartment(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: 1, // Default to first user
+        activityType: "create_department",
+        description: `New department "${department.name}" created`,
+        entityId: department.id,
+        entityType: "department"
+      });
+      
+      res.status(201).json(department);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid department data", error });
+    }
+  });
+
+  app.patch("/api/departments/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const department = await storage.getDepartment(id);
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      const updatedDepartment = await storage.updateDepartment(id, req.body);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: 1, // Default to first user
+        activityType: "update_department",
+        description: `Department "${department.name}" updated`,
+        entityId: id,
+        entityType: "department"
+      });
+      
+      res.json(updatedDepartment);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update department", error });
+    }
+  });
+
+  app.delete("/api/departments/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const department = await storage.getDepartment(id);
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      const deleted = await storage.deleteDepartment(id);
+      if (!deleted) {
+        return res.status(400).json({ message: "Cannot delete department with assigned users" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete department" });
+    }
+  });
+
+  // Access Level routes
+  app.get("/api/access-levels", async (req: Request, res: Response) => {
+    try {
+      const accessLevels = await storage.getAccessLevels();
+      res.json(accessLevels);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch access levels" });
+    }
+  });
+
+  app.get("/api/access-levels/:id", async (req: Request, res: Response) => {
+    try {
+      const accessLevel = await storage.getAccessLevel(Number(req.params.id));
+      if (!accessLevel) {
+        return res.status(404).json({ message: "Access level not found" });
+      }
+      res.json(accessLevel);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch access level" });
+    }
+  });
+
+  app.post("/api/access-levels", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertAccessLevelSchema.parse(req.body);
+      const accessLevel = await storage.createAccessLevel(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: 1, // Default to first user
+        activityType: "create_access_level",
+        description: `New access level "${accessLevel.name}" created`,
+        entityId: accessLevel.id,
+        entityType: "access_level"
+      });
+      
+      res.status(201).json(accessLevel);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid access level data", error });
+    }
+  });
+
+  app.patch("/api/access-levels/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const accessLevel = await storage.getAccessLevel(id);
+      if (!accessLevel) {
+        return res.status(404).json({ message: "Access level not found" });
+      }
+      
+      const updatedAccessLevel = await storage.updateAccessLevel(id, req.body);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: 1, // Default to first user
+        activityType: "update_access_level",
+        description: `Access level "${accessLevel.name}" updated`,
+        entityId: id,
+        entityType: "access_level"
+      });
+      
+      res.json(updatedAccessLevel);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update access level", error });
+    }
+  });
+
+  app.delete("/api/access-levels/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const accessLevel = await storage.getAccessLevel(id);
+      if (!accessLevel) {
+        return res.status(404).json({ message: "Access level not found" });
+      }
+      
+      const deleted = await storage.deleteAccessLevel(id);
+      if (!deleted) {
+        return res.status(400).json({ message: "Cannot delete access level with assigned users" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete access level" });
     }
   });
 

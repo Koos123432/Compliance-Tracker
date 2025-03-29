@@ -39,6 +39,7 @@ export default function Header({ username = "J. Smith", onMenuToggle }: HeaderPr
     if (location.startsWith('/investigations')) return 'investigations';
     if (location.startsWith('/schedule')) return 'schedule';
     if (location.startsWith('/reports')) return 'reports';
+    if (location.startsWith('/organization')) return 'organization';
     return 'inspections';
   };
 
@@ -118,6 +119,12 @@ export default function Header({ username = "J. Smith", onMenuToggle }: HeaderPr
               className="data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:rounded-none data-[state=inactive]:text-white/70 data-[state=inactive]:bg-transparent px-4 py-2 text-white"
             >
               Reports
+            </TabsTrigger>
+            <TabsTrigger 
+              value="organization"
+              className="data-[state=active]:bg-transparent data-[state=active]:text-white data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-white data-[state=active]:rounded-none data-[state=inactive]:text-white/70 data-[state=inactive]:bg-transparent px-4 py-2 text-white"
+            >
+              Organization
             </TabsTrigger>
           </TabsList>
         </Tabs>

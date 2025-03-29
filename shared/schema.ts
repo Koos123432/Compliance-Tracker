@@ -5,6 +5,35 @@ import { z } from "zod";
 // Type aliases
 export type Json = unknown;
 
+// Departments table for organizational structure
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description"),
+  parentDepartmentId: integer("parent_department_id"), // For hierarchical department structure
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertDepartmentSchema = createInsertSchema(departments).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Access levels for global application access
+export const accessLevels = pgTable("access_levels", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(), // 'system_admin', 'department_admin', 'manager', 'supervisor', 'officer', 'viewer', etc.
+  description: text("description"),
+  level: integer("level").notNull(), // 1-100, higher means more access
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertAccessLevelSchema = createInsertSchema(accessLevels).omit({
+  id: true,
+  createdAt: true,
+});
+
 // User roles table
 export const roles = pgTable("roles", {
   id: serial("id").primaryKey(),
@@ -54,7 +83,9 @@ export const users = pgTable("users", {
   fullName: text("full_name").notNull(),
   email: text("email"),
   phoneNumber: text("phone_number"),
-  roleId: integer("role_id"), // Reference to roles table
+  roleId: integer("role_id"), // Reference to roles table for permission-based access
+  departmentId: integer("department_id"), // Reference to departments table for organizational structure
+  accessLevelId: integer("access_level_id"), // Reference to access_levels table for global access control
   isActive: boolean("is_active").notNull().default(true),
   lastLogin: timestamp("last_login"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -66,6 +97,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   fullName: true,
   email: true,
   phoneNumber: true,
+  roleId: true,
+  departmentId: true,
+  accessLevelId: true,
 });
 
 // Inspections table
@@ -244,6 +278,12 @@ export const insertScheduleSchema = createInsertSchema(schedules).omit({
 });
 
 // Type exports
+export type Department = typeof departments.$inferSelect;
+export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
+
+export type AccessLevel = typeof accessLevels.$inferSelect;
+export type InsertAccessLevel = z.infer<typeof insertAccessLevelSchema>;
+
 export type Role = typeof roles.$inferSelect;
 export type InsertRole = z.infer<typeof insertRoleSchema>;
 

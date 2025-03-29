@@ -55,7 +55,13 @@ const InvestigationParticipants: React.FC<InvestigationParticipantsProps> = ({ i
   // Fetch participants for this investigation
   const { data: participants = [], isLoading: participantsLoading } = useQuery({
     queryKey: [`/api/investigations/${investigationId}/participants`],
-    queryFn: () => fetch(`/api/investigations/${investigationId}/participants`).then(res => res.json()),
+    queryFn: () => fetch(`/api/investigations/${investigationId}/participants`)
+      .then(res => res.json())
+      .then(data => {
+        console.log("Fetched participants data:", data);
+        // Ensure we always return an array
+        return Array.isArray(data) ? data : [];
+      }),
     enabled: !!investigationId,
   });
 

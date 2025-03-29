@@ -28,11 +28,27 @@ import {
   type BurdenOfProof, type InsertBurdenOfProof, burdensOfProof,
   type Proof, type InsertProof, proofs,
   type BriefSection, type InsertBriefSection, briefSections,
-  type Brief, type InsertBrief, briefs
+  type Brief, type InsertBrief, briefs,
+  type Department, type InsertDepartment, departments,
+  type AccessLevel, type InsertAccessLevel, accessLevels
 } from "@shared/schema";
 
 // Storage interface
 export interface IStorage {
+  // Department methods
+  getDepartments(): Promise<Department[]>;
+  getDepartment(id: number): Promise<Department | undefined>;
+  createDepartment(department: InsertDepartment): Promise<Department>;
+  updateDepartment(id: number, department: Partial<InsertDepartment>): Promise<Department | undefined>;
+  deleteDepartment(id: number): Promise<boolean>;
+  
+  // Access Level methods
+  getAccessLevels(): Promise<AccessLevel[]>;
+  getAccessLevel(id: number): Promise<AccessLevel | undefined>;
+  createAccessLevel(accessLevel: InsertAccessLevel): Promise<AccessLevel>;
+  updateAccessLevel(id: number, accessLevel: Partial<InsertAccessLevel>): Promise<AccessLevel | undefined>;
+  deleteAccessLevel(id: number): Promise<boolean>;
+
   // User methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -241,6 +257,8 @@ export interface IStorage {
 
 // In-memory storage implementation
 export class MemStorage implements IStorage {
+  private departments: Map<number, Department>;
+  private accessLevels: Map<number, AccessLevel>;
   private users: Map<number, User>;
   private inspections: Map<number, Inspection>;
   private people: Map<number, Person>;
@@ -272,6 +290,8 @@ export class MemStorage implements IStorage {
   private briefSections: Map<number, BriefSection>;
   private briefs: Map<number, Brief>;
   
+  private departmentId: number;
+  private accessLevelId: number;
   private userId: number;
   private inspectionId: number;
   private personId: number;
@@ -302,6 +322,8 @@ export class MemStorage implements IStorage {
   private briefId: number;
   
   constructor() {
+    this.departments = new Map();
+    this.accessLevels = new Map();
     this.users = new Map();
     this.inspections = new Map();
     this.people = new Map();
@@ -335,6 +357,8 @@ export class MemStorage implements IStorage {
     this.briefSections = new Map();
     this.briefs = new Map();
     
+    this.departmentId = 1;
+    this.accessLevelId = 1;
     this.userId = 1;
     this.inspectionId = 1;
     this.personId = 1;
@@ -364,13 +388,68 @@ export class MemStorage implements IStorage {
     this.briefSectionId = 1;
     this.briefId = 1;
     
+    // Create default departments
+    this.createDepartment({
+      name: "Environmental Protection",
+      description: "Handles environmental compliance and regulations",
+      isActive: true,
+      parentDepartmentId: null
+    });
+    
+    this.createDepartment({
+      name: "Building Compliance",
+      description: "Manages building code compliance and inspections",
+      isActive: true,
+      parentDepartmentId: null
+    });
+    
+    this.createDepartment({
+      name: "Health and Safety",
+      description: "Oversees health regulations and safety standards",
+      isActive: true,
+      parentDepartmentId: null
+    });
+    
+    // Create default access levels
+    this.createAccessLevel({
+      name: "Administrator",
+      level: 10,
+      description: "Full system access with all privileges"
+    });
+    
+    this.createAccessLevel({
+      name: "Manager",
+      level: 8,
+      description: "Department level management access"
+    });
+    
+    this.createAccessLevel({
+      name: "Senior Officer",
+      level: 5,
+      description: "Advanced features access for experienced officers"
+    });
+    
+    this.createAccessLevel({
+      name: "Officer",
+      level: 3,
+      description: "Standard officer access level"
+    });
+    
+    this.createAccessLevel({
+      name: "Trainee",
+      level: 1,
+      description: "Limited access for training purposes"
+    });
+    
     // Create default users
     this.createUser({
       username: "officer1",
       password: "password123",
       fullName: "John Smith",
       email: "jsmith@example.com",
-      phoneNumber: "0412345678"
+      phoneNumber: "0412345678",
+      departmentId: 1,
+      accessLevelId: 3
     });
     
     this.createUser({
@@ -378,10 +457,104 @@ export class MemStorage implements IStorage {
       password: "password123",
       fullName: "Jane Doe",
       email: "jdoe@example.com",
-      phoneNumber: "0411222333"
+      phoneNumber: "0411222333",
+      departmentId: 2,
+      accessLevelId: 4
     });
   }
   
+  // Department methods
+  async getDepartments(): Promise<Department[]> {
+    return Array.from(this.departments.values());
+  }
+
+  async getDepartment(id: number): Promise<Department | undefined> {
+    return this.departments.get(id);
+  }
+
+  async createDepartment(insertDepartment: InsertDepartment): Promise<Department> {
+    const id = this.departmentId++;
+    const department: Department = {
+      ...insertDepartment,
+      id,
+      createdAt: new Date()
+    };
+    this.departments.set(id, department);
+    return department;
+  }
+
+  async updateDepartment(id: number, updateData: Partial<InsertDepartment>): Promise<Department | undefined> {
+    const department = this.departments.get(id);
+    if (!department) return undefined;
+
+    const updatedDepartment: Department = {
+      ...department,
+      ...updateData
+    };
+    this.departments.set(id, updatedDepartment);
+    return updatedDepartment;
+  }
+
+  async deleteDepartment(id: number): Promise<boolean> {
+    // We should check if there are users assigned to this department
+    const hasUsers = Array.from(this.users.values()).some(
+      user => user.departmentId === id
+    );
+    
+    if (hasUsers) {
+      // Don't delete departments with assigned users
+      return false;
+    }
+    
+    return this.departments.delete(id);
+  }
+
+  // Access Level methods
+  async getAccessLevels(): Promise<AccessLevel[]> {
+    return Array.from(this.accessLevels.values());
+  }
+
+  async getAccessLevel(id: number): Promise<AccessLevel | undefined> {
+    return this.accessLevels.get(id);
+  }
+
+  async createAccessLevel(insertAccessLevel: InsertAccessLevel): Promise<AccessLevel> {
+    const id = this.accessLevelId++;
+    const accessLevel: AccessLevel = {
+      ...insertAccessLevel,
+      id,
+      createdAt: new Date()
+    };
+    this.accessLevels.set(id, accessLevel);
+    return accessLevel;
+  }
+
+  async updateAccessLevel(id: number, updateData: Partial<InsertAccessLevel>): Promise<AccessLevel | undefined> {
+    const accessLevel = this.accessLevels.get(id);
+    if (!accessLevel) return undefined;
+
+    const updatedAccessLevel: AccessLevel = {
+      ...accessLevel,
+      ...updateData
+    };
+    this.accessLevels.set(id, updatedAccessLevel);
+    return updatedAccessLevel;
+  }
+
+  async deleteAccessLevel(id: number): Promise<boolean> {
+    // We should check if there are users assigned to this access level
+    const hasUsers = Array.from(this.users.values()).some(
+      user => user.accessLevelId === id
+    );
+    
+    if (hasUsers) {
+      // Don't delete access levels with assigned users
+      return false;
+    }
+    
+    return this.accessLevels.delete(id);
+  }
+
   // User methods
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
@@ -399,9 +572,14 @@ export class MemStorage implements IStorage {
       ...insertUser, 
       id,
       roleId: null,
+      departmentId: null,
+      accessLevelId: null,
       isActive: true,
       lastLogin: null,
-      createdAt: new Date()
+      createdAt: new Date(),
+      // Ensure all nullable fields are properly set to null instead of undefined
+      email: insertUser.email || null,
+      phoneNumber: insertUser.phoneNumber || null
     };
     this.users.set(id, user);
     return user;
