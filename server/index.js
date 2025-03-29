@@ -1,8 +1,8 @@
 
-const express = require('express');
-const { registerRoutes } = require('./routes');
-const { setupVite, serveStatic, log } = require('./vite');
-const { setupWebSocketServer } = require('./websocket');
+import express from 'express';
+import { registerRoutes } from './routes.js';
+import { setupVite, serveStatic, log } from './vite.js';
+import { setupWebSocketServer } from './websocket.js';
 
 const app = express();
 app.use(express.json());
