@@ -11,7 +11,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse = undefined;
+  let capturedJsonResponse;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
@@ -41,6 +41,7 @@ app.use((req, res, next) => {
 (async () => {
   const server = await registerRoutes(app);
   
+  // Set up the WebSocket server
   setupWebSocketServer(server);
   
   app.use((err, _req, res, _next) => {

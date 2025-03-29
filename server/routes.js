@@ -1,20 +1,18 @@
-
-import express from "express";
 import { createServer } from "http";
 import { storage } from "./storage.js";
 import { broadcastMessage } from "./websocket.js";
+import { format } from "date-fns";
 
 export async function registerRoutes(app) {
   const httpServer = createServer(app);
-  
-  // Generate unique numbers with prefix helper
+
   function generateUniqueNumber(prefix) {
     const date = format(new Date(), "yyyy-MM");
     const randomPart = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     return `${prefix}-${date}-${randomPart}`;
   }
 
-  // Inspections routes
+  // API Routes
   app.get("/api/inspections", async (req, res) => {
     try {
       const inspections = await storage.getInspections();
@@ -42,7 +40,7 @@ export async function registerRoutes(app) {
         ...req.body,
         inspectionNumber: req.body.inspectionNumber || generateUniqueNumber("INS")
       });
-      
+
       // Create activity record
       await storage.createActivity({
         userId: req.body.assignedOfficerId || 1,
@@ -51,7 +49,7 @@ export async function registerRoutes(app) {
         entityId: inspection.id,
         entityType: "inspection"
       });
-      
+
       res.status(201).json(inspection);
     } catch (error) {
       res.status(400).json({ message: "Invalid inspection data", error });

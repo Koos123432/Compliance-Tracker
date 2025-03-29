@@ -1,10 +1,10 @@
 
-import WebSocket, { WebSocketServer } from 'ws';
+import { WebSocketServer } from 'ws';
 
 // Client tracking
 const clients = new Map();
 
-// WebSocket server setup
+// WebSocket server setup 
 export function setupWebSocketServer(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
   
@@ -15,7 +15,7 @@ export function setupWebSocketServer(server) {
     
     // Initialize client data
     const client = {
-      userId: 0,
+      userId: 0, // Will be set after authentication
       socket,
       subscriptions: new Set()
     };
@@ -46,7 +46,7 @@ export function setupWebSocketServer(server) {
       clients.delete(socket);
     });
     
-    // Send welcome message
+    // Send a welcome message
     socket.send(JSON.stringify({
       type: 'info',
       message: 'Connected to compliance management system'
@@ -72,6 +72,7 @@ function handleClientMessage(client, message) {
       break;
       
     case 'status':
+      // Send back the client's current subscriptions
       client.socket.send(JSON.stringify({
         type: 'status',
         userId: client.userId,
@@ -88,22 +89,26 @@ function handleClientMessage(client, message) {
   }
 }
 
+// Authenticate a client with a user ID
 function authenticateClient(client, userId) {
   client.userId = userId;
   console.log(`Client authenticated as user ${userId}`);
   
+  // Notify the client of successful authentication
   client.socket.send(JSON.stringify({
     type: 'authenticated',
     userId
   }));
 }
 
+// Subscribe a client to entity updates
 function subscribeToEntity(client, entityType, entityId) {
   const subscriptionKey = `${entityType}-${entityId}`;
   client.subscriptions.add(subscriptionKey);
   
   console.log(`User ${client.userId} subscribed to ${subscriptionKey}`);
   
+  // Confirm subscription to client
   client.socket.send(JSON.stringify({
     type: 'subscribed',
     entity: entityType,
@@ -111,12 +116,14 @@ function subscribeToEntity(client, entityType, entityId) {
   }));
 }
 
+// Unsubscribe a client from entity updates
 function unsubscribeFromEntity(client, entityType, entityId) {
   const subscriptionKey = `${entityType}-${entityId}`;
   client.subscriptions.delete(subscriptionKey);
   
   console.log(`User ${client.userId} unsubscribed from ${subscriptionKey}`);
   
+  // Confirm unsubscription to client
   client.socket.send(JSON.stringify({
     type: 'unsubscribed',
     entity: entityType,
@@ -124,6 +131,7 @@ function unsubscribeFromEntity(client, entityType, entityId) {
   }));
 }
 
+// Broadcast a message to all clients subscribed to an entity
 export function broadcastMessage(message) {
   if (!message.entity || !message.entityId) {
     console.error('Invalid broadcast message, missing entity or entityId:', message);
@@ -133,10 +141,12 @@ export function broadcastMessage(message) {
   broadcastMessageToClients(message);
 }
 
+// Internal function to broadcast messages to appropriate clients
 function broadcastMessageToClients(message) {
   const subscriptionKey = `${message.entity}-${message.entityId}`;
   let recipientCount = 0;
   
+  // Broadcast to all clients subscribed to this entity
   clients.forEach((client) => {
     if (client.subscriptions.has(subscriptionKey) && client.socket.readyState === WebSocket.OPEN) {
       client.socket.send(JSON.stringify(message));
@@ -147,6 +157,7 @@ function broadcastMessageToClients(message) {
   console.log(`Broadcast message to ${recipientCount} clients for ${subscriptionKey}`);
 }
 
+// Send a direct message to a specific user
 export function sendDirectMessage(userId, message) {
   let sent = false;
   
@@ -160,6 +171,7 @@ export function sendDirectMessage(userId, message) {
   return sent;
 }
 
+// Clean up all connections (used during shutdown)
 export function closeAllConnections() {
   clients.forEach((client, socket) => {
     try {
