@@ -36,7 +36,7 @@ CI/CD: GitHub Actions for automatic deployment
 
 1️⃣ Clone the repository
 
-git clone https://github.com/your-username/compliance-tracker.git
+git clone https://github.com/Koos123432/Compliance-Tracker.git
 cd compliance-tracker
 
 2️⃣ Setup Frontend (React)
