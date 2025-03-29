@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import TeamManager from "./TeamManager";
 
 // Department form schema
 const departmentFormSchema = z.object({
@@ -294,9 +295,10 @@ export default function OrganizationManager() {
       </p>
       
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full md:w-[400px] grid-cols-2">
+        <TabsList className="grid w-full md:w-[400px] grid-cols-3">
           <TabsTrigger value="departments">Departments</TabsTrigger>
           <TabsTrigger value="access-levels">Access Levels</TabsTrigger>
+          <TabsTrigger value="teams">Teams</TabsTrigger>
         </TabsList>
         
         {/* Departments Tab */}
@@ -603,6 +605,11 @@ export default function OrganizationManager() {
               <p>No access levels found. Create your first access level!</p>
             )}
           </div>
+        </TabsContent>
+        
+        {/* Teams Tab */}
+        <TabsContent value="teams" className="space-y-4 mt-4">
+          <TeamManager />
         </TabsContent>
       </Tabs>
     </div>
