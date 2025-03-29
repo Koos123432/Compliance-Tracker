@@ -1,11 +1,11 @@
 
-import { WebSocketServer } from 'ws';
+const { WebSocketServer } = require('ws');
 
 // Client tracking
 const clients = new Map();
 
-// WebSocket server setup 
-export function setupWebSocketServer(server) {
+// WebSocket server setup
+function setupWebSocketServer(server) {
   const wss = new WebSocketServer({ server, path: '/ws' });
   
   console.log('WebSocket server initialized at /ws');
@@ -132,7 +132,7 @@ function unsubscribeFromEntity(client, entityType, entityId) {
 }
 
 // Broadcast a message to all clients subscribed to an entity
-export function broadcastMessage(message) {
+function broadcastMessage(message) {
   if (!message.entity || !message.entityId) {
     console.error('Invalid broadcast message, missing entity or entityId:', message);
     return;
@@ -148,7 +148,7 @@ function broadcastMessageToClients(message) {
   
   // Broadcast to all clients subscribed to this entity
   clients.forEach((client) => {
-    if (client.subscriptions.has(subscriptionKey) && client.socket.readyState === WebSocket.OPEN) {
+    if (client.subscriptions.has(subscriptionKey) && client.socket.readyState === 1) {
       client.socket.send(JSON.stringify(message));
       recipientCount++;
     }
@@ -158,11 +158,11 @@ function broadcastMessageToClients(message) {
 }
 
 // Send a direct message to a specific user
-export function sendDirectMessage(userId, message) {
+function sendDirectMessage(userId, message) {
   let sent = false;
   
   clients.forEach((client) => {
-    if (client.userId === userId && client.socket.readyState === WebSocket.OPEN) {
+    if (client.userId === userId && client.socket.readyState === 1) {
       client.socket.send(JSON.stringify(message));
       sent = true;
     }
@@ -172,7 +172,7 @@ export function sendDirectMessage(userId, message) {
 }
 
 // Clean up all connections (used during shutdown)
-export function closeAllConnections() {
+function closeAllConnections() {
   clients.forEach((client, socket) => {
     try {
       socket.close();
@@ -184,3 +184,10 @@ export function closeAllConnections() {
   clients.clear();
   console.log('All WebSocket connections closed');
 }
+
+module.exports = {
+  setupWebSocketServer,
+  broadcastMessage,
+  sendDirectMessage,
+  closeAllConnections
+};
