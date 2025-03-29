@@ -75,7 +75,7 @@ export default function PhotoGallery({ inspectionId, breachId, title = "Photos" 
     },
   });
   
-  const handleCapture = (dataUrl: string) => {
+  const handleCapture = (dataUrl) => {
     addPhotoMutation.mutate(dataUrl);
     setShowCamera(false);
   };
