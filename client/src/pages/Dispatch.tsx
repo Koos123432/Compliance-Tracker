@@ -21,6 +21,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarIcon, MapPinIcon, UserIcon, Users, ArrowRight, Send, Clock, AlertTriangle, Check, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
@@ -632,17 +633,4 @@ export default function Dispatch() {
   );
 }
 
-// Helper component for Checkbox
-function Checkbox({ id, checked, onCheckedChange }: any) {
-  return (
-    <div className="flex items-center space-x-2">
-      <input
-        type="checkbox"
-        id={id}
-        checked={checked}
-        onChange={(e) => onCheckedChange(e.target.checked)}
-        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-      />
-    </div>
-  );
-}
+// Using shadcn/ui Checkbox component now

@@ -4,7 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Filter } from 'lucide-react';
+import { Search, Filter, Car } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import Header from '@/components/layout/Header';
 import BottomNavigation from '@/components/layout/BottomNavigation';
 import StatusBar from '@/components/StatusBar';
@@ -13,12 +15,14 @@ import QuickActions from '@/components/QuickActions';
 import ActivityFeed from '@/components/ActivityFeed';
 import NotificationPanel from '@/components/NotificationPanel';
 import TeamSchedulePanel from '@/components/TeamSchedulePanel';
+import CompactLayout from '@/components/CompactLayout';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Dashboard() {
   const [_, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
+  const [inCarMode, setInCarMode] = useState(false);
   const { toast } = useToast();
   
   const { data: inspections, isLoading } = useQuery({
@@ -43,12 +47,64 @@ export default function Dashboard() {
       )
     : [];
   
+  // Toggle for in-car mode
+  const toggleInCarMode = () => {
+    setInCarMode(prevState => !prevState);
+    toast({
+      title: inCarMode ? "Standard Mode Activated" : "In-Car Mode Activated",
+      description: inCarMode 
+        ? "Returning to standard interface" 
+        : "Interface optimized for in-car use with audio alerts",
+    });
+  };
+
+  // Render the compact in-car mode layout
+  if (inCarMode) {
+    return (
+      <div className="flex flex-col min-h-screen">
+        <div className="bg-black p-2 flex justify-between items-center">
+          <h1 className="text-white font-bold">Compliance Officer</h1>
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="car-mode-toggle" className="text-white text-xs">
+              In-Car Mode
+            </Label>
+            <Switch
+              id="car-mode-toggle"
+              checked={inCarMode}
+              onCheckedChange={toggleInCarMode}
+            />
+          </div>
+        </div>
+        
+        <div className="flex-1 bg-black">
+          <CompactLayout />
+        </div>
+      </div>
+    );
+  }
+
+  // Render the standard layout
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       
       <main className="flex-1 container mx-auto p-4 pb-20 md:pb-4">
         <StatusBar />
+        
+        {/* In-car mode toggle */}
+        <div className="flex justify-end mb-2">
+          <div className="flex items-center space-x-2">
+            <Car className="h-4 w-4 text-gray-500" />
+            <Label htmlFor="car-mode-toggle" className="text-sm text-gray-700">
+              In-Car Mode
+            </Label>
+            <Switch
+              id="car-mode-toggle"
+              checked={inCarMode}
+              onCheckedChange={toggleInCarMode}
+            />
+          </div>
+        </div>
         
         {/* Notification Panel */}
         <NotificationPanel />
