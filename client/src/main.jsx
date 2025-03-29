@@ -1,4 +1,3 @@
-
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
@@ -10,7 +9,7 @@ link.rel = "stylesheet";
 link.href = "https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined";
 document.head.appendChild(link);
 
-createRoot(document.getElementById("root")).render(
+createRoot(document.getElementById("root")!).render(
   <WebSocketProvider>
     <App />
   </WebSocketProvider>
