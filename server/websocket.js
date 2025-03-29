@@ -1,5 +1,5 @@
 
-const { WebSocketServer } = require('ws');
+import { WebSocketServer } from 'ws';
 
 // Client tracking
 const clients = new Map();
