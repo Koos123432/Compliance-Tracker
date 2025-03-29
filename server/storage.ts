@@ -23,7 +23,12 @@ import {
   type Permission, type InsertPermission, permissions,
   type RolePermission, type InsertRolePermission, rolePermissions,
   type InvestigationParticipant, type InsertInvestigationParticipant, investigationParticipants,
-  type InspectionInvestigationLink, type InsertInspectionInvestigationLink, inspectionInvestigationLinks
+  type InspectionInvestigationLink, type InsertInspectionInvestigationLink, inspectionInvestigationLinks,
+  type Offence, type InsertOffence, offences,
+  type BurdenOfProof, type InsertBurdenOfProof, burdensOfProof,
+  type Proof, type InsertProof, proofs,
+  type BriefSection, type InsertBriefSection, briefSections,
+  type Brief, type InsertBrief, briefs
 } from "@shared/schema";
 
 // Storage interface
@@ -197,6 +202,41 @@ export interface IStorage {
   deleteInspectionInvestigationLink(id: number): Promise<boolean>;
   getInspectionsForInvestigation(investigationId: number): Promise<Inspection[]>;
   getInvestigationsForInspection(inspectionId: number): Promise<Investigation[]>;
+  
+  // Offence methods
+  getOffences(investigationId: number): Promise<Offence[]>;
+  getOffence(id: number): Promise<Offence | undefined>;
+  createOffence(offence: InsertOffence): Promise<Offence>;
+  updateOffence(id: number, updateData: Partial<InsertOffence>): Promise<Offence | undefined>;
+  deleteOffence(id: number): Promise<boolean>;
+  
+  // Burden of Proof methods
+  getBurdensOfProof(offenceId: number): Promise<BurdenOfProof[]>;
+  getBurdenOfProof(id: number): Promise<BurdenOfProof | undefined>;
+  createBurdenOfProof(burden: InsertBurdenOfProof): Promise<BurdenOfProof>;
+  updateBurdenOfProof(id: number, updateData: Partial<InsertBurdenOfProof>): Promise<BurdenOfProof | undefined>;
+  deleteBurdenOfProof(id: number): Promise<boolean>;
+  
+  // Proof methods
+  getProofs(burdenId: number): Promise<Proof[]>;
+  getProof(id: number): Promise<Proof | undefined>;
+  createProof(proof: InsertProof): Promise<Proof>;
+  updateProof(id: number, updateData: Partial<InsertProof>): Promise<Proof | undefined>;
+  deleteProof(id: number): Promise<boolean>;
+  
+  // Brief Section methods
+  getBriefSections(investigationId: number): Promise<BriefSection[]>;
+  getBriefSection(id: number): Promise<BriefSection | undefined>;
+  createBriefSection(section: InsertBriefSection): Promise<BriefSection>;
+  updateBriefSection(id: number, updateData: Partial<InsertBriefSection>): Promise<BriefSection | undefined>;
+  deleteBriefSection(id: number): Promise<boolean>;
+  
+  // Brief methods
+  getBriefs(investigationId: number): Promise<Brief[]>;
+  getBrief(id: number): Promise<Brief | undefined>;
+  createBrief(brief: InsertBrief): Promise<Brief>;
+  updateBrief(id: number, updateData: Partial<InsertBrief>): Promise<Brief | undefined>;
+  deleteBrief(id: number): Promise<boolean>;
 }
 
 // In-memory storage implementation
@@ -226,6 +266,11 @@ export class MemStorage implements IStorage {
   private rolePermissions: Map<string, RolePermission>; // Composite key: `${roleId}-${permissionId}`
   private investigationParticipants: Map<number, InvestigationParticipant>;
   private inspectionInvestigationLinks: Map<number, InspectionInvestigationLink>;
+  private offences: Map<number, Offence>;
+  private burdensOfProof: Map<number, BurdenOfProof>;
+  private proofs: Map<number, Proof>;
+  private briefSections: Map<number, BriefSection>;
+  private briefs: Map<number, Brief>;
   
   private userId: number;
   private inspectionId: number;
@@ -250,6 +295,11 @@ export class MemStorage implements IStorage {
   private permissionId: number;
   private investigationParticipantId: number;
   private inspectionInvestigationLinkId: number;
+  private offenceId: number;
+  private burdenOfProofId: number;
+  private proofId: number;
+  private briefSectionId: number;
+  private briefId: number;
   
   constructor() {
     this.users = new Map();
@@ -278,6 +328,13 @@ export class MemStorage implements IStorage {
     this.investigationParticipants = new Map();
     this.inspectionInvestigationLinks = new Map();
     
+    // Initialize new maps for offence management
+    this.offences = new Map();
+    this.burdensOfProof = new Map();
+    this.proofs = new Map();
+    this.briefSections = new Map();
+    this.briefs = new Map();
+    
     this.userId = 1;
     this.inspectionId = 1;
     this.personId = 1;
@@ -301,6 +358,11 @@ export class MemStorage implements IStorage {
     this.permissionId = 1;
     this.investigationParticipantId = 1;
     this.inspectionInvestigationLinkId = 1;
+    this.offenceId = 1;
+    this.burdenOfProofId = 1;
+    this.proofId = 1;
+    this.briefSectionId = 1;
+    this.briefId = 1;
     
     // Create default users
     this.createUser({
@@ -1258,6 +1320,239 @@ export class MemStorage implements IStorage {
     
     return Array.from(this.investigations.values())
       .filter(investigation => investigationIds.includes(investigation.id));
+  }
+  
+  // Removed duplicate implementations
+
+  // Offence methods
+  async getOffences(investigationId: number): Promise<Offence[]> {
+    return Array.from(this.offences.values())
+      .filter(offence => offence.investigationId === investigationId);
+  }
+
+  async getOffence(id: number): Promise<Offence | undefined> {
+    return this.offences.get(id);
+  }
+
+  async createOffence(insertOffence: InsertOffence): Promise<Offence> {
+    const id = this.offenceId++;
+    const offence: Offence = {
+      ...insertOffence,
+      id,
+      createdAt: new Date(),
+      updatedAt: null
+    };
+    this.offences.set(id, offence);
+    return offence;
+  }
+
+  async updateOffence(id: number, updateData: Partial<InsertOffence>): Promise<Offence | undefined> {
+    const offence = this.offences.get(id);
+    if (!offence) return undefined;
+
+    const updatedOffence: Offence = { 
+      ...offence, 
+      ...updateData,
+      updatedAt: new Date()
+    };
+    
+    this.offences.set(id, updatedOffence);
+    return updatedOffence;
+  }
+
+  async deleteOffence(id: number): Promise<boolean> {
+    // Also delete related burdens of proof
+    const burdensToDelete = Array.from(this.burdensOfProof.values())
+      .filter(burden => burden.offenceId === id)
+      .map(burden => burden.id);
+    
+    for (const burdenId of burdensToDelete) {
+      await this.deleteBurdenOfProof(burdenId);
+    }
+    
+    return this.offences.delete(id);
+  }
+
+  // Burden of Proof methods
+  async getBurdensOfProof(offenceId: number): Promise<BurdenOfProof[]> {
+    return Array.from(this.burdensOfProof.values())
+      .filter(burden => burden.offenceId === offenceId);
+  }
+
+  async getBurdenOfProof(id: number): Promise<BurdenOfProof | undefined> {
+    return this.burdensOfProof.get(id);
+  }
+
+  async createBurdenOfProof(insertBurden: InsertBurdenOfProof): Promise<BurdenOfProof> {
+    const id = this.burdenOfProofId++;
+    const burden: BurdenOfProof = {
+      ...insertBurden,
+      id,
+      createdAt: new Date(),
+      updatedAt: null
+    };
+    this.burdensOfProof.set(id, burden);
+    return burden;
+  }
+
+  async updateBurdenOfProof(id: number, updateData: Partial<InsertBurdenOfProof>): Promise<BurdenOfProof | undefined> {
+    const burden = this.burdensOfProof.get(id);
+    if (!burden) return undefined;
+
+    const updatedBurden: BurdenOfProof = { 
+      ...burden, 
+      ...updateData,
+      updatedAt: new Date()
+    };
+    
+    this.burdensOfProof.set(id, updatedBurden);
+    return updatedBurden;
+  }
+
+  async deleteBurdenOfProof(id: number): Promise<boolean> {
+    // Also delete related proofs
+    const proofsToDelete = Array.from(this.proofs.values())
+      .filter(proof => proof.burdenId === id)
+      .map(proof => proof.id);
+    
+    for (const proofId of proofsToDelete) {
+      this.proofs.delete(proofId);
+    }
+    
+    return this.burdensOfProof.delete(id);
+  }
+
+  // Proof methods
+  async getProofs(burdenId: number): Promise<Proof[]> {
+    return Array.from(this.proofs.values())
+      .filter(proof => proof.burdenId === burdenId);
+  }
+
+  async getProof(id: number): Promise<Proof | undefined> {
+    return this.proofs.get(id);
+  }
+
+  async createProof(insertProof: InsertProof): Promise<Proof> {
+    const id = this.proofId++;
+    const proof: Proof = {
+      ...insertProof,
+      id,
+      createdAt: new Date(),
+      updatedAt: null
+    };
+    this.proofs.set(id, proof);
+    return proof;
+  }
+
+  async updateProof(id: number, updateData: Partial<InsertProof>): Promise<Proof | undefined> {
+    const proof = this.proofs.get(id);
+    if (!proof) return undefined;
+
+    const updatedProof: Proof = { 
+      ...proof, 
+      ...updateData,
+      updatedAt: new Date()
+    };
+    
+    this.proofs.set(id, updatedProof);
+    return updatedProof;
+  }
+
+  async deleteProof(id: number): Promise<boolean> {
+    return this.proofs.delete(id);
+  }
+
+  // Brief Section methods
+  async getBriefSections(investigationId: number): Promise<BriefSection[]> {
+    return Array.from(this.briefSections.values())
+      .filter(section => section.investigationId === investigationId)
+      .sort((a, b) => a.sectionOrder - b.sectionOrder);
+  }
+
+  async getBriefSection(id: number): Promise<BriefSection | undefined> {
+    return this.briefSections.get(id);
+  }
+
+  async createBriefSection(insertSection: InsertBriefSection): Promise<BriefSection> {
+    const id = this.briefSectionId++;
+    const section: BriefSection = {
+      ...insertSection,
+      id,
+      createdAt: new Date(),
+      lastEditedAt: new Date()
+    };
+    this.briefSections.set(id, section);
+    return section;
+  }
+
+  async updateBriefSection(id: number, updateData: Partial<InsertBriefSection>): Promise<BriefSection | undefined> {
+    const section = this.briefSections.get(id);
+    if (!section) return undefined;
+
+    const updatedSection: BriefSection = { 
+      ...section, 
+      ...updateData,
+      lastEditedAt: new Date(),
+      lastEditedBy: updateData.lastEditedBy || section.lastEditedBy
+    };
+    
+    this.briefSections.set(id, updatedSection);
+    return updatedSection;
+  }
+
+  async deleteBriefSection(id: number): Promise<boolean> {
+    return this.briefSections.delete(id);
+  }
+
+  // Brief methods
+  async getBriefs(investigationId: number): Promise<Brief[]> {
+    return Array.from(this.briefs.values())
+      .filter(brief => brief.investigationId === investigationId);
+  }
+
+  async getBrief(id: number): Promise<Brief | undefined> {
+    return this.briefs.get(id);
+  }
+
+  async createBrief(insertBrief: InsertBrief): Promise<Brief> {
+    const id = this.briefId++;
+    const brief: Brief = {
+      ...insertBrief,
+      id,
+      createdAt: new Date(),
+      updatedAt: null,
+      approvedAt: null,
+      submittedAt: null
+    };
+    this.briefs.set(id, brief);
+    return brief;
+  }
+
+  async updateBrief(id: number, updateData: Partial<InsertBrief>): Promise<Brief | undefined> {
+    const brief = this.briefs.get(id);
+    if (!brief) return undefined;
+
+    const updatedBrief: Brief = { 
+      ...brief, 
+      ...updateData,
+      updatedAt: new Date()
+    };
+    
+    // Handle status-specific date fields
+    if (updateData.status === 'approved' && updateData.approvedBy) {
+      updatedBrief.approvedAt = new Date();
+    }
+    
+    if (updateData.status === 'submitted' && updateData.submittedTo) {
+      updatedBrief.submittedAt = new Date();
+    }
+    
+    this.briefs.set(id, updatedBrief);
+    return updatedBrief;
+  }
+
+  async deleteBrief(id: number): Promise<boolean> {
+    return this.briefs.delete(id);
   }
 }
 

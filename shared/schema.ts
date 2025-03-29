@@ -1,6 +1,9 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, primaryKey, unique } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, primaryKey, unique, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+
+// Type aliases
+export type Json = unknown;
 
 // User roles table
 export const roles = pgTable("roles", {
@@ -574,3 +577,144 @@ export const insertInspectionInvestigationLinkSchema = createInsertSchema(inspec
 
 export type InspectionInvestigationLink = typeof inspectionInvestigationLinks.$inferSelect;
 export type InsertInspectionInvestigationLink = z.infer<typeof insertInspectionInvestigationLinkSchema>;
+
+// Offences for investigations (multiple offences per investigation)
+export const offences = pgTable("offences", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  offenceCode: text("offence_code"), // Specific legal code for the offence
+  offenceAct: text("offence_act").notNull(), // Which act the offence falls under
+  offenceSection: text("offence_section"), // Section of the act
+  offenceClause: text("offence_clause"), // Specific clause
+  offenceSeverity: text("offence_severity").notNull(), // 'low', 'medium', 'high', 'severe'
+  offenceDate: timestamp("offence_date"), // When the offence occurred
+  maxPenalty: text("max_penalty"), // Maximum penalty that can be applied
+  status: text("status").notNull().default("draft"), // 'draft', 'review', 'filed', 'prosecuting', 'completed'
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedBy: integer("updated_by"),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertOffenceSchema = createInsertSchema(offences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Burden of proof for each offence
+export const burdensOfProof = pgTable("burdens_of_proof", {
+  id: serial("id").primaryKey(),
+  offenceId: integer("offence_id").notNull(),
+  title: text("title").notNull(), // Short name of what needs to be proven
+  description: text("description").notNull(), // Detailed description of the burden
+  legalBasis: text("legal_basis").notNull(), // Legal basis requiring this proof
+  standardOfProof: text("standard_of_proof").notNull(), // 'beyond reasonable doubt', 'balance of probabilities', etc.
+  status: text("status").notNull().default("required"), // 'required', 'in progress', 'satisfied', 'failed'
+  notes: text("notes"), // General notes
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedBy: integer("updated_by"),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertBurdenOfProofSchema = createInsertSchema(burdensOfProof).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Proofs for each burden of proof
+export const proofs = pgTable("proofs", {
+  id: serial("id").primaryKey(),
+  burdenId: integer("burden_id").notNull(),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  proofType: text("proof_type").notNull(), // 'photo', 'document', 'testimony', 'expert_witness', 'physical_evidence', etc.
+  status: text("status").notNull().default("pending"), // 'pending', 'collected', 'verified', 'admissible', 'inadmissible'
+  confidentiality: text("confidentiality").notNull().default("normal"), // 'public', 'normal', 'sensitive', 'classified'
+  collectionDate: timestamp("collection_date"),
+  collectedBy: integer("collected_by").notNull(),
+  verifiedBy: integer("verified_by"),
+  verifiedDate: timestamp("verified_date"),
+  source: text("source"), // Where the proof came from
+  sourceContact: text("source_contact"), // Contact info for the source
+  evidenceUrl: text("evidence_url"), // URL to the evidence file
+  notes: text("notes"), // Notes about this piece of evidence
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertProofSchema = createInsertSchema(proofs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Brief sections - used to generate complete prosecution briefs
+export const briefSections = pgTable("brief_sections", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  sectionType: text("section_type").notNull(), // 'intro', 'facts', 'evidence', 'argument', 'conclusion', 'recommendation', etc.
+  sectionOrder: integer("section_order").notNull(), // Order within the brief
+  status: text("status").notNull().default("draft"), // 'draft', 'review', 'approved', 'final'
+  assignedEditor: integer("assigned_editor"), // Officer assigned to edit this section
+  tags: text("tags").array(), // Tags for organizing sections
+  lastEditedBy: integer("last_edited_by"), 
+  lastEditedAt: timestamp("last_edited_at"),
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertBriefSectionSchema = createInsertSchema(briefSections).omit({
+  id: true,
+  lastEditedAt: true,
+  createdAt: true,
+});
+
+// Complete brief documents
+export const briefs = pgTable("briefs", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").notNull(),
+  title: text("title").notNull(),
+  version: text("version").notNull().default("1.0"),
+  status: text("status").notNull().default("draft"), // 'draft', 'review', 'final', 'submitted', 'approved'
+  briefUrl: text("brief_url"), // URL to the generated PDF
+  approvedBy: integer("approved_by"), // Who approved the brief
+  approvedAt: timestamp("approved_at"),
+  submittedTo: text("submitted_to"), // Who it was submitted to
+  submittedAt: timestamp("submitted_at"),
+  notes: text("notes"),
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedBy: integer("updated_by"),
+  updatedAt: timestamp("updated_at"),
+});
+
+export const insertBriefSchema = createInsertSchema(briefs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  approvedAt: true,
+  submittedAt: true,
+});
+
+// Export types for new tables
+export type Offence = typeof offences.$inferSelect;
+export type InsertOffence = z.infer<typeof insertOffenceSchema>;
+
+export type BurdenOfProof = typeof burdensOfProof.$inferSelect;
+export type InsertBurdenOfProof = z.infer<typeof insertBurdenOfProofSchema>;
+
+export type Proof = typeof proofs.$inferSelect;
+export type InsertProof = z.infer<typeof insertProofSchema>;
+
+export type BriefSection = typeof briefSections.$inferSelect;
+export type InsertBriefSection = z.infer<typeof insertBriefSectionSchema>;
+
+export type Brief = typeof briefs.$inferSelect;
+export type InsertBrief = z.infer<typeof insertBriefSchema>;

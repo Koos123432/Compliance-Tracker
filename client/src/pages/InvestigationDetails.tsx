@@ -46,6 +46,8 @@ import RelationshipManager from "@/components/RelationshipManager";
 import TimelineManager from "@/components/TimelineManager";
 import ReportLinkManager from "@/components/ReportLinkManager";
 import InvestigationParticipants from "@/components/InvestigationParticipants";
+import OffenceManager from "@/components/OffenceManager";
+import BriefManager from "@/components/BriefManager";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -442,7 +444,7 @@ export default function InvestigationDetails() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-7 mb-4">
+          <TabsList className="grid grid-cols-9 mb-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tracking">Tracking Notices</TabsTrigger>
             <TabsTrigger value="evidence">Elements of Proof</TabsTrigger>
@@ -462,6 +464,8 @@ export default function InvestigationDetails() {
               <UserPlus className="w-4 h-4 mr-1" />
               Team
             </TabsTrigger>
+            <TabsTrigger value="offences">Offences</TabsTrigger>
+            <TabsTrigger value="briefs">Briefs</TabsTrigger>
           </TabsList>
           
           <TabsContent value="overview" className="space-y-4">
@@ -648,6 +652,14 @@ export default function InvestigationDetails() {
           
           <TabsContent value="team" className="space-y-4">
             <InvestigationParticipants investigationId={id} />
+          </TabsContent>
+          
+          <TabsContent value="offences" className="space-y-4">
+            <OffenceManager investigationId={id} />
+          </TabsContent>
+          
+          <TabsContent value="briefs" className="space-y-4">
+            <BriefManager investigationId={id} />
           </TabsContent>
         </Tabs>
       </main>

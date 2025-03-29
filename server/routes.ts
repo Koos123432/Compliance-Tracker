@@ -25,7 +25,13 @@ import {
   insertPermissionSchema,
   insertRolePermissionSchema,
   insertUserSchema,
-  insertInvestigationParticipantSchema
+  insertInvestigationParticipantSchema,
+  insertInspectionInvestigationLinkSchema,
+  insertOffenceSchema,
+  insertBurdenOfProofSchema,
+  insertProofSchema,
+  insertBriefSectionSchema,
+  insertBriefSchema
 } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -1643,5 +1649,406 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Offence routes
+  app.get("/api/investigations/:id/offences", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      const offences = await storage.getOffences(investigationId);
+      res.json(offences);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch offences" });
+    }
+  });
+
+  app.get("/api/offences/:id", async (req: Request, res: Response) => {
+    try {
+      const offence = await storage.getOffence(Number(req.params.id));
+      if (!offence) {
+        return res.status(404).json({ message: "Offence not found" });
+      }
+      res.json(offence);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch offence" });
+    }
+  });
+
+  app.post("/api/offences", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertOffenceSchema.parse(req.body);
+      const offence = await storage.createOffence(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.createdBy,
+        activityType: "create_offence",
+        description: `New offence "${offence.title}" added to investigation #${offence.investigationId}`,
+        entityId: offence.id,
+        entityType: "offence"
+      });
+      
+      res.status(201).json(offence);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid offence data", error });
+    }
+  });
+
+  app.patch("/api/offences/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const offence = await storage.getOffence(id);
+      if (!offence) {
+        return res.status(404).json({ message: "Offence not found" });
+      }
+      
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      const updatedOffence = await storage.updateOffence(id, updateData);
+      res.json(updatedOffence);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update offence", error });
+    }
+  });
+
+  app.delete("/api/offences/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const offence = await storage.getOffence(id);
+      if (!offence) {
+        return res.status(404).json({ message: "Offence not found" });
+      }
+      
+      await storage.deleteOffence(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete offence" });
+    }
+  });
+
+  // Burden of Proof routes
+  app.get("/api/offences/:id/burdens", async (req: Request, res: Response) => {
+    try {
+      const offenceId = Number(req.params.id);
+      const burdens = await storage.getBurdensOfProof(offenceId);
+      res.json(burdens);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch burdens of proof" });
+    }
+  });
+
+  app.get("/api/burdens/:id", async (req: Request, res: Response) => {
+    try {
+      const burden = await storage.getBurdenOfProof(Number(req.params.id));
+      if (!burden) {
+        return res.status(404).json({ message: "Burden of proof not found" });
+      }
+      res.json(burden);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch burden of proof" });
+    }
+  });
+
+  app.post("/api/burdens", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertBurdenOfProofSchema.parse(req.body);
+      const burden = await storage.createBurdenOfProof(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.createdBy,
+        activityType: "create_burden_of_proof",
+        description: `New burden of proof "${burden.title}" added to offence #${burden.offenceId}`,
+        entityId: burden.id,
+        entityType: "burden_of_proof"
+      });
+      
+      res.status(201).json(burden);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid burden of proof data", error });
+    }
+  });
+
+  app.patch("/api/burdens/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const burden = await storage.getBurdenOfProof(id);
+      if (!burden) {
+        return res.status(404).json({ message: "Burden of proof not found" });
+      }
+      
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      const updatedBurden = await storage.updateBurdenOfProof(id, updateData);
+      res.json(updatedBurden);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update burden of proof", error });
+    }
+  });
+
+  app.delete("/api/burdens/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const burden = await storage.getBurdenOfProof(id);
+      if (!burden) {
+        return res.status(404).json({ message: "Burden of proof not found" });
+      }
+      
+      await storage.deleteBurdenOfProof(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete burden of proof" });
+    }
+  });
+
+  // Proof routes
+  app.get("/api/burdens/:id/proofs", async (req: Request, res: Response) => {
+    try {
+      const burdenId = Number(req.params.id);
+      const proofs = await storage.getProofs(burdenId);
+      res.json(proofs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proofs" });
+    }
+  });
+
+  app.get("/api/proofs/:id", async (req: Request, res: Response) => {
+    try {
+      const proof = await storage.getProof(Number(req.params.id));
+      if (!proof) {
+        return res.status(404).json({ message: "Proof not found" });
+      }
+      res.json(proof);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch proof" });
+    }
+  });
+
+  app.post("/api/proofs", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertProofSchema.parse(req.body);
+      const proof = await storage.createProof(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.collectedBy,
+        activityType: "create_proof",
+        description: `New proof "${proof.title}" added to burden #${proof.burdenId}`,
+        entityId: proof.id,
+        entityType: "proof"
+      });
+      
+      res.status(201).json(proof);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid proof data", error });
+    }
+  });
+
+  app.patch("/api/proofs/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const proof = await storage.getProof(id);
+      if (!proof) {
+        return res.status(404).json({ message: "Proof not found" });
+      }
+      
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      const updatedProof = await storage.updateProof(id, updateData);
+      res.json(updatedProof);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update proof", error });
+    }
+  });
+
+  app.delete("/api/proofs/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const proof = await storage.getProof(id);
+      if (!proof) {
+        return res.status(404).json({ message: "Proof not found" });
+      }
+      
+      await storage.deleteProof(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete proof" });
+    }
+  });
+
+  // Brief Section routes
+  app.get("/api/investigations/:id/brief-sections", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      const sections = await storage.getBriefSections(investigationId);
+      res.json(sections);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch brief sections" });
+    }
+  });
+
+  app.get("/api/brief-sections/:id", async (req: Request, res: Response) => {
+    try {
+      const section = await storage.getBriefSection(Number(req.params.id));
+      if (!section) {
+        return res.status(404).json({ message: "Brief section not found" });
+      }
+      res.json(section);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch brief section" });
+    }
+  });
+
+  app.post("/api/brief-sections", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertBriefSectionSchema.parse(req.body);
+      const section = await storage.createBriefSection(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.createdBy,
+        activityType: "create_brief_section",
+        description: `New brief section "${section.title}" added to investigation #${section.investigationId}`,
+        entityId: section.id,
+        entityType: "brief_section"
+      });
+      
+      res.status(201).json(section);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid brief section data", error });
+    }
+  });
+
+  app.patch("/api/brief-sections/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const section = await storage.getBriefSection(id);
+      if (!section) {
+        return res.status(404).json({ message: "Brief section not found" });
+      }
+      
+      const updateData = req.body;
+      
+      // Set the last edited time and user
+      if (updateData.lastEditedBy && !updateData.lastEditedAt) {
+        updateData.lastEditedAt = new Date();
+      }
+      
+      const updatedSection = await storage.updateBriefSection(id, updateData);
+      res.json(updatedSection);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update brief section", error });
+    }
+  });
+
+  app.delete("/api/brief-sections/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const section = await storage.getBriefSection(id);
+      if (!section) {
+        return res.status(404).json({ message: "Brief section not found" });
+      }
+      
+      await storage.deleteBriefSection(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete brief section" });
+    }
+  });
+
+  // Brief routes
+  app.get("/api/investigations/:id/briefs", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      const briefs = await storage.getBriefs(investigationId);
+      res.json(briefs);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch briefs" });
+    }
+  });
+
+  app.get("/api/briefs/:id", async (req: Request, res: Response) => {
+    try {
+      const brief = await storage.getBrief(Number(req.params.id));
+      if (!brief) {
+        return res.status(404).json({ message: "Brief not found" });
+      }
+      res.json(brief);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch brief" });
+    }
+  });
+
+  app.post("/api/briefs", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertBriefSchema.parse(req.body);
+      const brief = await storage.createBrief(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.createdBy,
+        activityType: "create_brief",
+        description: `New brief "${brief.title}" created for investigation #${brief.investigationId}`,
+        entityId: brief.id,
+        entityType: "brief"
+      });
+      
+      res.status(201).json(brief);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid brief data", error });
+    }
+  });
+
+  app.patch("/api/briefs/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const brief = await storage.getBrief(id);
+      if (!brief) {
+        return res.status(404).json({ message: "Brief not found" });
+      }
+      
+      const updateData = {
+        ...req.body,
+        updatedAt: new Date()
+      };
+      
+      // Handle special statuses
+      if (updateData.status === 'approved' && updateData.approvedBy) {
+        updateData.approvedAt = new Date();
+      }
+      
+      if (updateData.status === 'submitted' && updateData.submittedTo) {
+        updateData.submittedAt = new Date();
+      }
+      
+      const updatedBrief = await storage.updateBrief(id, updateData);
+      res.json(updatedBrief);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update brief", error });
+    }
+  });
+
+  app.delete("/api/briefs/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const brief = await storage.getBrief(id);
+      if (!brief) {
+        return res.status(404).json({ message: "Brief not found" });
+      }
+      
+      await storage.deleteBrief(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete brief" });
+    }
+  });
+
   return httpServer;
 }
