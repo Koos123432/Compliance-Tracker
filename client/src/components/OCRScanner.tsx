@@ -56,31 +56,92 @@ export default function OCRScanner({ onScanComplete, onClose }: OCRScannerProps)
   };
   
   const parseOCRData = (text: string) => {
-    // Basic parsing to extract name and license number
-    // This is a simplified implementation - in a real app, this would need to be more robust
-    // and handle different license formats
-    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    // More robust parsing to extract driver's license info
+    console.log("OCR Raw Text:", text); // Log for debugging
     
-    const nameRegex = /^([A-Z]+,?\s+[A-Z\s]+)$/; // Simple regex for name
-    const licenseRegex = /(\d{7,})$/; // Simple regex for license number - sequence of 7+ digits
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    const joinedText = lines.join(' '); // Create a joined version to search across line breaks
     
     let name = '';
     let licenseNumber = '';
     
-    for (const line of lines) {
-      // Try to find name
-      const nameMatch = line.match(nameRegex);
-      if (nameMatch && !name) {
-        name = nameMatch[1].trim();
-        continue;
-      }
-      
-      // Try to find license number
-      const licenseMatch = line.match(licenseRegex);
-      if (licenseMatch && !licenseNumber) {
-        licenseNumber = licenseMatch[1].trim();
+    // Common patterns for driver's license numbers
+    // Look for license numbers - various formats supported
+    const licensePatterns = [
+      /\b([A-Z0-9]{1,3}[\s-]?[0-9]{2,7}[\s-]?[0-9]{3,7})\b/i, // Format like "D123456789" or "DL 12345678"
+      /\b(LICENSE|LIC|DL)[\s#:]*([A-Z0-9]{5,})\b/i, // Format with "LICENSE" label
+      /\b([A-Z0-9]{7,13})\b/i, // Just a sequence of letters and numbers (at least 7 chars)
+      /\b([0-9]{5,13})\b/ // Just a sequence of numbers (at least 5 digits)
+    ];
+    
+    for (const pattern of licensePatterns) {
+      const match = joinedText.match(pattern);
+      if (match) {
+        licenseNumber = match[1] || match[2] || "";
+        licenseNumber = licenseNumber.replace(/\s+/g, ''); // Remove any spaces
+        break;
       }
     }
+    
+    // Name detection - look for common name patterns in driver's licenses
+    // Patterns for name detection
+    const namePatterns = [
+      /\b(NAME|NM)[:\s]+([A-Z\s,.-]+)\b/i, // Format with "NAME" label
+      /\b(LAST|LST|SURNAME)[:\s]+([A-Z\s]+)[,\s]+(FIRST|FST)[:\s]+([A-Z\s]+)\b/i, // Format with LAST/FIRST labels
+      /\b([A-Z]+)[,\s]+([A-Z]+\s*[A-Z]*)\b/ // Format like "SMITH, JOHN DAVID"
+    ];
+    
+    for (const pattern of namePatterns) {
+      const match = joinedText.match(pattern);
+      if (match) {
+        if (match[2] && match[4]) { // LAST, FIRST format
+          name = `${match[2].trim()}, ${match[4].trim()}`;
+        } else if (match[2] && !match[4]) { // Just name after label
+          name = match[2].trim();
+        } else if (match[1] && match[2]) { // LAST, FIRST in another format
+          name = `${match[1].trim()}, ${match[2].trim()}`;
+        }
+        break;
+      }
+    }
+    
+    // If no structured name was found, try to find a name based on positioning and formatting
+    if (!name) {
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].toUpperCase();
+        // Look for lines that look like names (all caps, no numbers, reasonable length)
+        if (/^[A-Z.\s,'-]{5,30}$/.test(line) && 
+            !line.includes("LICENSE") && 
+            !line.includes("DRIVER") && 
+            !line.includes("STATE") &&
+            !line.includes("EXPIRES")) {
+          name = line;
+          break;
+        }
+      }
+    }
+    
+    // If we still don't have a license number, try to find sequences that match typical license patterns
+    if (!licenseNumber) {
+      for (const line of lines) {
+        const numbers = line.match(/\b\d{6,12}\b/);
+        if (numbers && numbers[0].length >= 6) {
+          licenseNumber = numbers[0];
+          break;
+        }
+      }
+    }
+    
+    // Manual cleanup for name (very common OCR errors)
+    if (name) {
+      name = name
+        .replace(/\b0\b/g, 'O') // Replace standalone "0" with "O"
+        .replace(/1/g, 'I') // Replace "1" with "I" in names
+        .replace(/\s{2,}/g, ' ') // Replace multiple spaces with single space
+        .trim();
+    }
+    
+    console.log("Extracted data:", { name, licenseNumber }); // Log extracted data
     
     return {
       name,

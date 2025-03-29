@@ -53,17 +53,25 @@ const InvestigationParticipants: React.FC<InvestigationParticipantsProps> = ({ i
   const [addParticipantDialogOpen, setAddParticipantDialogOpen] = useState(false);
 
   // Fetch participants for this investigation
-  const { data: participants = [], isLoading: participantsLoading } = useQuery({
+  const { data: participantsData, isLoading: participantsLoading } = useQuery({
     queryKey: [`/api/investigations/${investigationId}/participants`],
-    queryFn: () => fetch(`/api/investigations/${investigationId}/participants`)
-      .then(res => res.json())
-      .then(data => {
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/investigations/${investigationId}/participants`);
+        const data = await response.json();
         console.log("Fetched participants data:", data);
         // Ensure we always return an array
-        return Array.isArray(data) ? data : [];
-      }),
+        return data;
+      } catch (error) {
+        console.error("Error fetching participants:", error);
+        return [];
+      }
+    },
     enabled: !!investigationId,
   });
+  
+  // Ensure participants is always an array
+  const participants = Array.isArray(participantsData) ? participantsData : [];
 
   // Fetch all users
   const { data: users = [], isLoading: usersLoading } = useQuery({

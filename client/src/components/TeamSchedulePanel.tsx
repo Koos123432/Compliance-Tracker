@@ -10,14 +10,12 @@ import {
   FileX,
   ChevronDown,
   ChevronUp,
-  MapPin,
   CheckCircle,
   X
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,15 +25,34 @@ export default function TeamSchedulePanel() {
   const { toast } = useToast();
   const userId = 1; // For now, hardcode to the first user
 
-  const { data: teams, isLoading: isLoadingTeams } = useQuery<Team[]>({
+  // Add proper types and enable options
+  const { data: teamsData, isLoading: isLoadingTeams } = useQuery({
     queryKey: ['/api/users', userId, 'teams'],
-    queryFn: () => apiRequest(`/api/users/${userId}/teams`),
+    queryFn: async () => {
+      const response = await apiRequest(`/api/users/${userId}/teams`);
+      return response as Team[];
+    },
+    enabled: true,
   });
 
-  const { data: assignments, isLoading: isLoadingAssignments } = useQuery<TeamScheduleAssignment[]>({
+  // The teams data properly typed
+  const teams = Array.isArray(teamsData) ? teamsData : [];
+
+  // Add proper types and enable options
+  const { data: assignmentsData, isLoading: isLoadingAssignments } = useQuery({
     queryKey: ['/api/users', userId, 'assignments'],
-    queryFn: () => apiRequest(`/api/users/${userId}/assignments`),
+    queryFn: async () => {
+      const response = await apiRequest(`/api/users/${userId}/assignments`);
+      return response as TeamScheduleAssignment[];
+    },
+    enabled: true,
   });
+
+  // The assignments data properly typed
+  const assignments = Array.isArray(assignmentsData) ? assignmentsData : [];
+
+  // Track loaded team schedules
+  const [teamSchedules, setTeamSchedules] = useState<Record<number, TeamSchedule[]>>({});
 
   const updateAssignmentMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: number, status: string, notes?: string }) => 
@@ -53,16 +70,13 @@ export default function TeamSchedulePanel() {
   });
 
   const getScheduleDetails = (scheduleId: number) => {
-    if (!teams) return null;
-    
-    for (const team of teams) {
-      const schedules = queryClient.getQueryData<TeamSchedule[]>(['/api/teams', team.id, 'schedules']);
+    for (const teamId in teamSchedules) {
+      const schedules = teamSchedules[Number(teamId)];
       if (schedules) {
         const schedule = schedules.find(s => s.id === scheduleId);
         if (schedule) return schedule;
       }
     }
-    
     return null;
   };
 
@@ -107,22 +121,32 @@ export default function TeamSchedulePanel() {
 
   // Fetch team schedules for each team the user belongs to
   useEffect(() => {
-    if (teams && teams.length > 0) {
-      teams.forEach((team: Team) => {
-        const schedulesQueryData = queryClient.getQueryData(['/api/teams', team.id, 'schedules']);
-        if (!schedulesQueryData) {
-          queryClient.fetchQuery({
-            queryKey: ['/api/teams', team.id, 'schedules'],
-            queryFn: () => apiRequest(`/api/teams/${team.id}/schedules`),
-          });
+    const fetchTeamSchedules = async () => {
+      if (teams && teams.length > 0) {
+        const schedulesMap: Record<number, TeamSchedule[]> = {};
+        
+        for (const team of teams) {
+          try {
+            const response = await apiRequest(`/api/teams/${team.id}/schedules`);
+            const schedules = Array.isArray(response) ? response : [];
+            schedulesMap[team.id] = schedules;
+          } catch (error) {
+            console.error(`Failed to fetch schedules for team ${team.id}:`, error);
+          }
         }
-      });
+        
+        setTeamSchedules(schedulesMap);
+      }
+    };
+    
+    if (teams.length > 0) {
+      fetchTeamSchedules();
     }
-  }, [teams, queryClient]);
+  }, [teams]);
 
-  const pendingAssignments = assignments?.filter((assignment: TeamScheduleAssignment) => 
+  const pendingAssignments = assignments.filter(assignment => 
     assignment.assignmentStatus === 'pending'
-  ) || [];
+  );
 
   return (
     <Card className="mb-4">
@@ -150,8 +174,8 @@ export default function TeamSchedulePanel() {
         <CardContent className="p-0 divide-y divide-gray-100">
           {isLoadingAssignments || isLoadingTeams ? (
             <div className="p-4 text-center text-gray-500">Loading schedules...</div>
-          ) : assignments && assignments.length > 0 ? (
-            assignments.map((assignment: TeamScheduleAssignment) => {
+          ) : assignments.length > 0 ? (
+            assignments.map((assignment) => {
               const schedule = getScheduleDetails(assignment.teamScheduleId);
               return (
                 <div key={assignment.id} className="p-3">
@@ -224,6 +248,21 @@ export default function TeamSchedulePanel() {
             })
           ) : (
             <div className="p-4 text-center text-gray-500">No team schedules assigned</div>
+          )}
+
+          {/* Add Team List Section */}
+          {teams.length > 0 && (
+            <div className="p-4 border-t border-gray-200">
+              <h4 className="font-medium text-sm mb-3">Your Teams</h4>
+              <div className="space-y-2">
+                {teams.map((team) => (
+                  <div key={team.id} className="flex items-center p-2 bg-gray-50 rounded-md">
+                    <Users className="h-4 w-4 text-blue-500 mr-2" />
+                    <span className="text-sm">{team.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </CardContent>
       )}
