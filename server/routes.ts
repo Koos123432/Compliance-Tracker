@@ -20,7 +20,12 @@ import {
   insertElementOfProofSchema,
   insertPersonRelationshipSchema,
   insertTimelineEventSchema,
-  insertReportInvestigationLinkSchema
+  insertReportInvestigationLinkSchema,
+  insertRoleSchema,
+  insertPermissionSchema,
+  insertRolePermissionSchema,
+  insertUserSchema,
+  insertInvestigationParticipantSchema
 } from "@shared/schema";
 import { format } from "date-fns";
 
@@ -1241,6 +1246,253 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Initialize demo data
   await demoData();
+
+  // User Role routes
+  app.get("/api/roles", async (req: Request, res: Response) => {
+    try {
+      const roles = await storage.getRoles();
+      res.json(roles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch roles" });
+    }
+  });
+
+  app.get("/api/roles/:id", async (req: Request, res: Response) => {
+    try {
+      const role = await storage.getRole(Number(req.params.id));
+      if (!role) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      res.json(role);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch role" });
+    }
+  });
+
+  app.post("/api/roles", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertRoleSchema.parse(req.body);
+      const role = await storage.createRole(validatedData);
+      res.status(201).json(role);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid role data", error });
+    }
+  });
+
+  app.patch("/api/roles/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      
+      const updatedRole = await storage.updateRole(id, req.body);
+      res.json(updatedRole);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update role", error });
+    }
+  });
+
+  app.delete("/api/roles/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const role = await storage.getRole(id);
+      if (!role) {
+        return res.status(404).json({ message: "Role not found" });
+      }
+      
+      await storage.deleteRole(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete role" });
+    }
+  });
+
+  // Permissions routes
+  app.get("/api/permissions", async (req: Request, res: Response) => {
+    try {
+      const category = req.query.category ? String(req.query.category) : undefined;
+      const permissions = await storage.getPermissions(category);
+      res.json(permissions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch permissions" });
+    }
+  });
+
+  app.post("/api/permissions", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertPermissionSchema.parse(req.body);
+      const permission = await storage.createPermission(validatedData);
+      res.status(201).json(permission);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid permission data", error });
+    }
+  });
+
+  // Role-Permission mapping routes
+  app.get("/api/roles/:roleId/permissions", async (req: Request, res: Response) => {
+    try {
+      const roleId = Number(req.params.roleId);
+      const permissions = await storage.getRolePermissions(roleId);
+      res.json(permissions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch role permissions" });
+    }
+  });
+
+  app.post("/api/role-permissions", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertRolePermissionSchema.parse(req.body);
+      const rolePermission = await storage.createRolePermission(validatedData);
+      res.status(201).json(rolePermission);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid role-permission data", error });
+    }
+  });
+
+  app.delete("/api/role-permissions", async (req: Request, res: Response) => {
+    try {
+      const roleId = Number(req.query.roleId);
+      const permissionId = Number(req.query.permissionId);
+      if (!roleId || !permissionId) {
+        return res.status(400).json({ message: "Both roleId and permissionId are required" });
+      }
+      
+      await storage.deleteRolePermission(roleId, permissionId);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete role-permission" });
+    }
+  });
+
+  // User routes
+  app.get("/api/users", async (req: Request, res: Response) => {
+    try {
+      const users = await storage.getUsers();
+      res.json(users);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.get("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const user = await storage.getUser(Number(req.params.id));
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      // Never send password in response
+      const { password, ...userWithoutPassword } = user;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  app.post("/api/users", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertUserSchema.parse(req.body);
+      // In a real app, you would hash the password before storing
+      const user = await storage.createUser(validatedData);
+      // Don't return password in response
+      const { password, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid user data", error });
+    }
+  });
+
+  app.patch("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const user = await storage.getUser(id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const updatedUser = await storage.updateUser(id, req.body);
+      // Don't return password in response
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update user", error });
+    }
+  });
+
+  // Investigation Participants (Tagged Users) routes
+  app.get("/api/investigations/:id/participants", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      const participants = await storage.getInvestigationParticipants(investigationId);
+      res.json(participants);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch investigation participants" });
+    }
+  });
+
+  app.get("/api/users/:userId/investigations", async (req: Request, res: Response) => {
+    try {
+      const userId = Number(req.params.userId);
+      const investigations = await storage.getUserInvestigations(userId);
+      res.json(investigations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user investigations" });
+    }
+  });
+
+  app.post("/api/investigation-participants", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertInvestigationParticipantSchema.parse(req.body);
+      const participant = await storage.createInvestigationParticipant(validatedData);
+      
+      // Create activity record
+      await storage.createActivity({
+        userId: validatedData.addedBy,
+        activityType: "tag_user_investigation",
+        description: `User #${validatedData.userId} added to investigation #${validatedData.investigationId} as ${validatedData.role}`,
+        entityId: validatedData.investigationId,
+        entityType: "investigation"
+      });
+      
+      res.status(201).json(participant);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid investigation participant data", error });
+    }
+  });
+
+  app.patch("/api/investigation-participants/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const participant = await storage.getInvestigationParticipant(id);
+      if (!participant) {
+        return res.status(404).json({ message: "Investigation participant not found" });
+      }
+      
+      const updatedParticipant = await storage.updateInvestigationParticipant(id, {
+        ...req.body,
+        updatedAt: new Date(),
+      });
+      res.json(updatedParticipant);
+    } catch (error) {
+      res.status(400).json({ message: "Failed to update investigation participant", error });
+    }
+  });
+
+  app.delete("/api/investigation-participants/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const participant = await storage.getInvestigationParticipant(id);
+      if (!participant) {
+        return res.status(404).json({ message: "Investigation participant not found" });
+      }
+      
+      await storage.deleteInvestigationParticipant(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete investigation participant" });
+    }
+  });
   
   return httpServer;
 }

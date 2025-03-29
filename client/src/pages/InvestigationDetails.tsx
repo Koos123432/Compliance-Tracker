@@ -41,10 +41,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Plus, Clock, AlertTriangle, CheckCircle, FileText, Check, X, Calendar, User, Users, History, Link } from "lucide-react";
+import { ArrowLeft, Plus, Clock, AlertTriangle, CheckCircle, FileText, Check, X, Calendar, User, Users, History, Link, UserPlus } from "lucide-react";
 import RelationshipManager from "@/components/RelationshipManager";
 import TimelineManager from "@/components/TimelineManager";
 import ReportLinkManager from "@/components/ReportLinkManager";
+import InvestigationParticipants from "@/components/InvestigationParticipants";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -441,7 +442,7 @@ export default function InvestigationDetails() {
         </div>
         
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid grid-cols-6 mb-4">
+          <TabsList className="grid grid-cols-7 mb-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="tracking">Tracking Notices</TabsTrigger>
             <TabsTrigger value="evidence">Elements of Proof</TabsTrigger>
@@ -456,6 +457,10 @@ export default function InvestigationDetails() {
             <TabsTrigger value="reports">
               <FileText className="w-4 h-4 mr-1" />
               Reports
+            </TabsTrigger>
+            <TabsTrigger value="team">
+              <UserPlus className="w-4 h-4 mr-1" />
+              Team
             </TabsTrigger>
           </TabsList>
           
@@ -639,6 +644,10 @@ export default function InvestigationDetails() {
           
           <TabsContent value="reports" className="space-y-4">
             <ReportLinkManager investigationId={id} />
+          </TabsContent>
+          
+          <TabsContent value="team" className="space-y-4">
+            <InvestigationParticipants investigationId={id} />
           </TabsContent>
         </Tabs>
       </main>

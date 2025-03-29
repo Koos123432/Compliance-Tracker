@@ -2,6 +2,47 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb, primaryKey, 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// User roles table
+export const roles = pgTable("roles", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(), // 'admin', 'manager', 'officer', 'junior_officer', 'readonly'
+  description: text("description"),
+  permissionLevel: integer("permission_level").notNull(), // 1-100, higher means more permissions
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertRoleSchema = createInsertSchema(roles).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Permissions table
+export const permissions = pgTable("permissions", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(), // e.g., 'create_inspection', 'edit_investigation', etc.
+  description: text("description"),
+  category: text("category").notNull(), // 'inspection', 'investigation', 'admin', etc.
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertPermissionSchema = createInsertSchema(permissions).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Role-Permission mapping (many-to-many)
+export const rolePermissions = pgTable("role_permissions", {
+  roleId: integer("role_id").notNull(),
+  permissionId: integer("permission_id").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey(t.roleId, t.permissionId),
+}));
+
+export const insertRolePermissionSchema = createInsertSchema(rolePermissions).omit({
+  createdAt: true,
+});
+
 // User table for officers
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -10,6 +51,10 @@ export const users = pgTable("users", {
   fullName: text("full_name").notNull(),
   email: text("email"),
   phoneNumber: text("phone_number"),
+  roleId: integer("role_id"), // Reference to roles table
+  isActive: boolean("is_active").notNull().default(true),
+  lastLogin: timestamp("last_login"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -124,6 +169,13 @@ export const investigations = pgTable("investigations", {
   judgeName: text("judge_name"), // Name of presiding judge
   prosecutorName: text("prosecutor_name"), // Name of prosecutor
   legalOutcome: text("legal_outcome"), // Outcome of legal proceedings
+  // Team and user access
+  ownerId: integer("owner_id"), // Primary officer responsible for investigation
+  teamId: integer("team_id"), // Team assigned to investigation
+  accessLevel: text("access_level").default("team"), // 'public', 'team', 'private', 'restricted'
+  // Tagged users with specific access
+  taggedUserIds: integer("tagged_user_ids").array(), // Users specifically tagged/assigned to this investigation
+  taggedUserRoles: jsonb("tagged_user_roles"), // JSON mapping of userId to role within investigation
   // Inspection report linking
   linkedInspectionIds: text("linked_inspection_ids").array(), // Array of inspection IDs linked to this investigation
   // Timeline management
@@ -189,6 +241,15 @@ export const insertScheduleSchema = createInsertSchema(schedules).omit({
 });
 
 // Type exports
+export type Role = typeof roles.$inferSelect;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
+
+export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
+
+export type RolePermission = typeof rolePermissions.$inferSelect;
+export type InsertRolePermission = z.infer<typeof insertRolePermissionSchema>;
+
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
@@ -450,6 +511,29 @@ export const insertReportInvestigationLinkSchema = createInsertSchema(reportInve
   createdAt: true,
 });
 
+// Investigation participants (tagged users)
+export const investigationParticipants = pgTable("investigation_participants", {
+  id: serial("id").primaryKey(),
+  investigationId: integer("investigation_id").notNull(),
+  userId: integer("user_id").notNull(),
+  role: text("role").notNull(), // 'lead', 'support', 'observer', 'advisor', 'legal', 'supervisor'
+  permissions: text("permissions").array(), // Array of specific permission keys for this user in this investigation
+  notes: text("notes"),
+  addedBy: integer("added_by").notNull(), // Who added this person to the investigation
+  addedAt: timestamp("added_at").notNull().defaultNow(),
+  updatedBy: integer("updated_by"),
+  updatedAt: timestamp("updated_at"),
+  isActive: boolean("is_active").notNull().default(true), // Whether this participant is currently active
+}, (t) => ({
+  unq: unique().on(t.investigationId, t.userId), // One user can only be a participant once per investigation
+}));
+
+export const insertInvestigationParticipantSchema = createInsertSchema(investigationParticipants).omit({
+  id: true,
+  addedAt: true,
+  updatedAt: true,
+});
+
 // Type exports for new tables
 export type OfficerNote = typeof officerNotes.$inferSelect;
 export type InsertOfficerNote = z.infer<typeof insertOfficerNoteSchema>;
@@ -468,3 +552,6 @@ export type InsertTimelineEvent = z.infer<typeof insertTimelineEventSchema>;
 
 export type ReportInvestigationLink = typeof reportInvestigationLinks.$inferSelect;
 export type InsertReportInvestigationLink = z.infer<typeof insertReportInvestigationLinkSchema>;
+
+export type InvestigationParticipant = typeof investigationParticipants.$inferSelect;
+export type InsertInvestigationParticipant = z.infer<typeof insertInvestigationParticipantSchema>;
