@@ -22,7 +22,8 @@ import {
   type Role, type InsertRole, roles,
   type Permission, type InsertPermission, permissions,
   type RolePermission, type InsertRolePermission, rolePermissions,
-  type InvestigationParticipant, type InsertInvestigationParticipant, investigationParticipants
+  type InvestigationParticipant, type InsertInvestigationParticipant, investigationParticipants,
+  type InspectionInvestigationLink, type InsertInspectionInvestigationLink, inspectionInvestigationLinks
 } from "@shared/schema";
 
 // Storage interface
@@ -187,6 +188,15 @@ export interface IStorage {
   getInvestigationParticipant(id: number): Promise<InvestigationParticipant | undefined>;
   updateInvestigationParticipant(id: number, participant: Partial<InsertInvestigationParticipant>): Promise<InvestigationParticipant | undefined>;
   deleteInvestigationParticipant(id: number): Promise<boolean>;
+  
+  // Inspection-Investigation Link methods
+  getInspectionInvestigationLinks(inspectionId?: number, investigationId?: number): Promise<InspectionInvestigationLink[]>;
+  getInspectionInvestigationLink(id: number): Promise<InspectionInvestigationLink | undefined>;
+  createInspectionInvestigationLink(link: InsertInspectionInvestigationLink): Promise<InspectionInvestigationLink>;
+  updateInspectionInvestigationLink(id: number, link: Partial<InsertInspectionInvestigationLink>): Promise<InspectionInvestigationLink | undefined>;
+  deleteInspectionInvestigationLink(id: number): Promise<boolean>;
+  getInspectionsForInvestigation(investigationId: number): Promise<Inspection[]>;
+  getInvestigationsForInspection(inspectionId: number): Promise<Investigation[]>;
 }
 
 // In-memory storage implementation
@@ -215,6 +225,7 @@ export class MemStorage implements IStorage {
   private permissions: Map<number, Permission>;
   private rolePermissions: Map<string, RolePermission>; // Composite key: `${roleId}-${permissionId}`
   private investigationParticipants: Map<number, InvestigationParticipant>;
+  private inspectionInvestigationLinks: Map<number, InspectionInvestigationLink>;
   
   private userId: number;
   private inspectionId: number;
@@ -238,6 +249,7 @@ export class MemStorage implements IStorage {
   private roleId: number;
   private permissionId: number;
   private investigationParticipantId: number;
+  private inspectionInvestigationLinkId: number;
   
   constructor() {
     this.users = new Map();
@@ -264,6 +276,7 @@ export class MemStorage implements IStorage {
     this.permissions = new Map();
     this.rolePermissions = new Map();
     this.investigationParticipants = new Map();
+    this.inspectionInvestigationLinks = new Map();
     
     this.userId = 1;
     this.inspectionId = 1;
@@ -287,6 +300,7 @@ export class MemStorage implements IStorage {
     this.roleId = 1;
     this.permissionId = 1;
     this.investigationParticipantId = 1;
+    this.inspectionInvestigationLinkId = 1;
     
     // Create default users
     this.createUser({
@@ -1181,6 +1195,69 @@ export class MemStorage implements IStorage {
 
   async deleteInvestigationParticipant(id: number): Promise<boolean> {
     return this.investigationParticipants.delete(id);
+  }
+
+  // Inspection-Investigation Link methods
+  async getInspectionInvestigationLinks(inspectionId?: number, investigationId?: number): Promise<InspectionInvestigationLink[]> {
+    if (inspectionId && investigationId) {
+      return Array.from(this.inspectionInvestigationLinks.values())
+        .filter(link => link.inspectionId === inspectionId && link.investigationId === investigationId);
+    } else if (inspectionId) {
+      return Array.from(this.inspectionInvestigationLinks.values())
+        .filter(link => link.inspectionId === inspectionId);
+    } else if (investigationId) {
+      return Array.from(this.inspectionInvestigationLinks.values())
+        .filter(link => link.investigationId === investigationId);
+    } else {
+      return Array.from(this.inspectionInvestigationLinks.values());
+    }
+  }
+
+  async getInspectionInvestigationLink(id: number): Promise<InspectionInvestigationLink | undefined> {
+    return this.inspectionInvestigationLinks.get(id);
+  }
+
+  async createInspectionInvestigationLink(insertLink: InsertInspectionInvestigationLink): Promise<InspectionInvestigationLink> {
+    const id = this.inspectionInvestigationLinkId++;
+    const link: InspectionInvestigationLink = {
+      ...insertLink,
+      id,
+      createdAt: new Date()
+    };
+    this.inspectionInvestigationLinks.set(id, link);
+    return link;
+  }
+
+  async updateInspectionInvestigationLink(id: number, updateData: Partial<InsertInspectionInvestigationLink>): Promise<InspectionInvestigationLink | undefined> {
+    const link = this.inspectionInvestigationLinks.get(id);
+    if (!link) return undefined;
+    
+    const updatedLink: InspectionInvestigationLink = {
+      ...link,
+      ...updateData
+    };
+    this.inspectionInvestigationLinks.set(id, updatedLink);
+    return updatedLink;
+  }
+
+  async deleteInspectionInvestigationLink(id: number): Promise<boolean> {
+    return this.inspectionInvestigationLinks.delete(id);
+  }
+
+  async getInspectionsForInvestigation(investigationId: number): Promise<Inspection[]> {
+    const links = await this.getInspectionInvestigationLinks(undefined, investigationId);
+    const inspectionIds = links.map(link => link.inspectionId);
+    
+    return Array.from(this.inspections.values())
+      .filter(inspection => inspectionIds.includes(inspection.id));
+  }
+
+  async getInvestigationsForInspection(inspectionId: number): Promise<Investigation[]> {
+    const links = await this.getInspectionInvestigationLinks(inspectionId);
+    const investigationIds = links.map(link => link.investigationId);
+    
+    return Array.from(this.investigations.values())
+      .filter(investigation => investigationIds.includes(investigation.id));
   }
 }
 

@@ -1493,6 +1493,155 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to delete investigation participant" });
     }
   });
+
+  // Inspection-Investigation Links API routes
+  app.get("/api/inspection-investigation-links", async (req: Request, res: Response) => {
+    try {
+      const inspectionId = req.query.inspectionId ? Number(req.query.inspectionId) : undefined;
+      const investigationId = req.query.investigationId ? Number(req.query.investigationId) : undefined;
+      
+      const links = await storage.getInspectionInvestigationLinks(inspectionId, investigationId);
+      res.status(200).json(links);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch inspection-investigation links" });
+    }
+  });
+
+  app.get("/api/inspection-investigation-links/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const link = await storage.getInspectionInvestigationLink(id);
+      
+      if (!link) {
+        return res.status(404).json({ message: "Inspection-investigation link not found" });
+      }
+      
+      res.status(200).json(link);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch inspection-investigation link" });
+    }
+  });
+
+  app.post("/api/inspection-investigation-links", async (req: Request, res: Response) => {
+    try {
+      const validatedData = insertInspectionInvestigationLinkSchema.parse(req.body);
+      
+      // Check if inspection exists
+      const inspection = await storage.getInspection(validatedData.inspectionId);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspection not found" });
+      }
+      
+      // Check if investigation exists
+      const investigation = await storage.getInvestigation(validatedData.investigationId);
+      if (!investigation) {
+        return res.status(404).json({ message: "Investigation not found" });
+      }
+      
+      // Check if link already exists
+      const existingLinks = await storage.getInspectionInvestigationLinks(
+        validatedData.inspectionId, 
+        validatedData.investigationId
+      );
+      
+      if (existingLinks.length > 0) {
+        return res.status(409).json({ 
+          message: "Link between this inspection and investigation already exists",
+          linkId: existingLinks[0].id
+        });
+      }
+      
+      const link = await storage.createInspectionInvestigationLink(validatedData);
+      
+      // Log activity
+      await storage.createActivity({
+        userId: req.body.userId || 1, // Default to first user if not specified
+        activityType: "link_inspection_investigation",
+        description: `Linked inspection #${validatedData.inspectionId} to investigation #${validatedData.investigationId}`,
+        entityId: validatedData.investigationId,
+        entityType: "investigation"
+      });
+      
+      res.status(201).json(link);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid inspection-investigation link data", error });
+    }
+  });
+
+  app.patch("/api/inspection-investigation-links/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const link = await storage.getInspectionInvestigationLink(id);
+      if (!link) {
+        return res.status(404).json({ message: "Inspection-investigation link not found" });
+      }
+      
+      const updatedLink = await storage.updateInspectionInvestigationLink(id, req.body);
+      res.status(200).json(updatedLink);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update inspection-investigation link" });
+    }
+  });
+
+  app.delete("/api/inspection-investigation-links/:id", async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const link = await storage.getInspectionInvestigationLink(id);
+      if (!link) {
+        return res.status(404).json({ message: "Inspection-investigation link not found" });
+      }
+      
+      // Log activity before deleting
+      await storage.createActivity({
+        userId: req.body.userId || 1, // Default to first user if not specified
+        activityType: "unlink_inspection_investigation",
+        description: `Unlinked inspection #${link.inspectionId} from investigation #${link.investigationId}`,
+        entityId: link.investigationId,
+        entityType: "investigation"
+      });
+      
+      await storage.deleteInspectionInvestigationLink(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete inspection-investigation link" });
+    }
+  });
+
+  // Get all inspections for a specific investigation
+  app.get("/api/investigations/:id/inspections", async (req: Request, res: Response) => {
+    try {
+      const investigationId = Number(req.params.id);
+      
+      // Check if investigation exists
+      const investigation = await storage.getInvestigation(investigationId);
+      if (!investigation) {
+        return res.status(404).json({ message: "Investigation not found" });
+      }
+      
+      const inspections = await storage.getInspectionsForInvestigation(investigationId);
+      res.status(200).json(inspections);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch inspections for investigation" });
+    }
+  });
+
+  // Get all investigations for a specific inspection
+  app.get("/api/inspections/:id/investigations", async (req: Request, res: Response) => {
+    try {
+      const inspectionId = Number(req.params.id);
+      
+      // Check if inspection exists
+      const inspection = await storage.getInspection(inspectionId);
+      if (!inspection) {
+        return res.status(404).json({ message: "Inspection not found" });
+      }
+      
+      const investigations = await storage.getInvestigationsForInspection(inspectionId);
+      res.status(200).json(investigations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch investigations for inspection" });
+    }
+  });
   
   return httpServer;
 }

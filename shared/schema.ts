@@ -555,3 +555,22 @@ export type InsertReportInvestigationLink = z.infer<typeof insertReportInvestiga
 
 export type InvestigationParticipant = typeof investigationParticipants.$inferSelect;
 export type InsertInvestigationParticipant = z.infer<typeof insertInvestigationParticipantSchema>;
+
+// Inspection to Investigation links
+export const inspectionInvestigationLinks = pgTable("inspection_investigation_links", {
+  id: serial("id").primaryKey(),
+  inspectionId: integer("inspection_id").notNull(),
+  investigationId: integer("investigation_id").notNull(),
+  linkType: text("link_type").notNull().default("standard"), // standard, breach, primary, etc.
+  notes: text("notes"),
+  createdBy: integer("created_by").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertInspectionInvestigationLinkSchema = createInsertSchema(inspectionInvestigationLinks).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InspectionInvestigationLink = typeof inspectionInvestigationLinks.$inferSelect;
+export type InsertInspectionInvestigationLink = z.infer<typeof insertInspectionInvestigationLinkSchema>;
